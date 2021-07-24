@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Login</title>
+    <style>
+        body {
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #666666;
+        }
+        .grid {
+            display: flex;
+            flex-direction: column;
+            background: white;
+            box-shadow: 5px 10px 10px rgba(0, 0, 0, 0.29);
+            padding: 2em;
+            width: 600px;
+        }
+        .button {
+            display: inline-block;
+            padding: 0.5em 1em;
+            text-decoration: none;
+            background: #f7f7f7;
+            font-weight: bold;
+            box-shadow: 0px 5px 5px rgba(0, 0, 0, 0.29);
+            margin: 0.3em;
+            transition: 0.2s;
+        }
+        .button:active {
+            box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.29);
+            transform: translateY(2px);
+        }
+        .button:before {
+            content: "";
+            display: inline-block;
+            background-size: contain;
+            vertical-align: middle;
+        }
+
+        h2 {
+            font-size: 150%;
+            font-weight: bold;
+            color: #045FB4;
+            padding: 10px 0;
+            border-bottom: solid 2px #045FB4;
+        }
+
+        dl.defines {
+            width:50%;
+            margin:20px auto;
+            border-bottom:1px solid #999;
+            letter-spacing:-0.31em;
+            *letter-spacing:normal;
+            word-spacing:-0.43em;
+        }
+        .defines dt,
+        .defines dd {
+            display:inline-block;
+            *display:inline;
+            zoom:1;
+            letter-spacing:normal;
+            word-spacing:normal;
+            vertical-align:top;
+            padding:3px 2% 4px;
+            margin:0;
+            border-top:1px solid #999;
+        }
+
+        .defines dt {
+            margin-right:-1px;
+            width:30%;
+        }
+
+        .defines dd {
+            width:60%;
+        }
+
+        .buttons {
+            display: flex;
+            width: 100%;
+            justify-content: flex-end;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid">
+        <h1>User Status</h1>
+        <h2>User Information</h2>
+        <div class="defines">
+            <dl>
+                <dt>UserID: </dt>
+                <dd>{{ .UserID }}</dd>
+                <dt>Display Name: </dt>
+                <dd>{{ .DisplayName }}</dd>
+                <dt>E-Mail: </dt>
+                <dd>{{ .Email }}</dd>
+                <dt>Organization: </dt>
+                <dd>{{ .Organization }}</dd>
+                <dt>Scopes: </dt>
+                <dd>{{ .ScopeString }}</dd>
+            </dl>
+        </div>
+        <h2>Federated IDs</h2>
+        <div class="defines">
+            <dl>
+                {{- range .FederatedUserAccounts -}}
+                <dt>{{ .Service }}: </dt>
+                <dd>{{ .Account }}</dd>
+                {{- end -}}
+            </dl>
+        </div>
+        <span class="buttons"><a class="button" href="/.wru/user/sessions">Show user sessions</a><a class="button" href="/.wru/logout">Logout</a></span>
+    </div>
+</body>
+</html>

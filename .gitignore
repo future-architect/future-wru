@@ -1,0 +1,4 @@
+*.pem
+.DS_Store
+Thumbds.db
+.env*
