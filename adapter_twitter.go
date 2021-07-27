@@ -82,12 +82,8 @@ func twitterCallback(c *Config, r *http.Request, loginInfo map[string]string) (t
 		return "", nil, fmt.Errorf("getting access token error: %w", err)
 	}
 
-	v := url.Values{}
-	v.Set("include_email", "true")
+	resp, err := twitterClient.Get(nil, cred, "https://api.twitter.com/1.1/account/verify_credentials.json", url.Values{})
 
-	resp, err := twitterClient.Get(nil, cred, "https://api.twitter.com/1.1/account/verify_credentials.json", url.Values{
-		"include_email": []string{"true"},
-	})
 	if err != nil {
 		return "", nil, fmt.Errorf("twitter login error error: %w", err)
 	}
