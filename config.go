@@ -1,6 +1,7 @@
 package wru
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -22,21 +23,21 @@ const (
 )
 
 type configFromEnv struct {
-	Port                  uint16        `envconfig:"PORT" default:"3000"`
-	Host                  string        `envconfig:"HOST" required:"true"`
-	AdminPort             uint16        `envconfig:"ADMIN_PORT" default:"3001"` // todo: implment admin screen
+	Port      uint16 `envconfig:"PORT" default:"3000"`
+	Host      string `envconfig:"HOST" required:"true"`
+	AdminPort uint16 `envconfig:"ADMIN_PORT" default:"3001"` // todo: implment admin screen
 
-	DevMode               bool          `envconfig:"WRU_DEV_MODE" default:"true"`
-	TlsCert               string        `envconfig:"WRU_TLS_CERT"`
-	TlsKey                string        `envconfig:"WRU_TLS_KEY"`
-	ForwardTo             string        `envconfig:"WRU_FORWARD_TO" required:"true"`
-	DefaultLandingPage    string        `envconfig:"WRU_DEFAULT_LANDING_PAGE" default:"/"`
-	SessionStorage        string        `envconfig:"WRU_SESSION_STORAGE"`
-	ClientSessionIDCookie string        `envconfig:"WRU_CLIENT_SESSION_ID_COOKIE" default:"WRU_SESSION@cookie"`
-	ServerSessionField    string        `envconfig:"WRU_SERVER_SESSION_FIELD" default:"Wru-Session"`
+	DevMode               bool   `envconfig:"WRU_DEV_MODE" default:"true"`
+	TlsCert               string `envconfig:"WRU_TLS_CERT"`
+	TlsKey                string `envconfig:"WRU_TLS_KEY"`
+	ForwardTo             string `envconfig:"WRU_FORWARD_TO" required:"true"`
+	DefaultLandingPage    string `envconfig:"WRU_DEFAULT_LANDING_PAGE" default:"/"`
+	SessionStorage        string `envconfig:"WRU_SESSION_STORAGE"`
+	ClientSessionIDCookie string `envconfig:"WRU_CLIENT_SESSION_ID_COOKIE" default:"WRU_SESSION@cookie"`
+	ServerSessionField    string `envconfig:"WRU_SERVER_SESSION_FIELD" default:"Wru-Session"`
 
-	UserTable             string        `envconfig:"WRU_USER_TABLE"`
-	UserTableReloadTerm   time.Duration `envconfig:"WRU_USER_TABLE_RELOAD_TERM"`
+	UserTable           string        `envconfig:"WRU_USER_TABLE"`
+	UserTableReloadTerm time.Duration `envconfig:"WRU_USER_TABLE_RELOAD_TERM"`
 
 	LoginTimeoutTerm           time.Duration `envconfig:"WRU_LOGIN_TIMEOUT_TERM" default:"10m"`
 	SessionIdleTimeoutTerm     time.Duration `envconfig:"WRU_SESSION_IDLE_TIMEOUT_TERM" default:"1h"`
@@ -49,11 +50,15 @@ type configFromEnv struct {
 
 	GitHubClientID     string `envconfig:"WRU_GITHUB_CLIENT_ID"`
 	GitHubClientSecret string `envconfig:"WRU_GITHUB_CLIENT_SECRET"`
+
+	OIDCProviderURL  string `envconfig:"WRU_OIDC_PROVIDER_URL"`
+	OIDCClientID     string `envconfig:"WRU_OIDC_CLIENT_ID"`
+	OIDCClientSecret string `envconfig:"WRU_OIDC_CLIENT_SECRET"`
 }
 
 type Config struct {
-	Port                     uint16
-	Host                     string
+	Port uint16
+	Host string
 
 	DevMode bool
 
@@ -77,13 +82,14 @@ type Config struct {
 
 	Twitter TwitterConfig
 	GitHub  GitHubConfig
+	OIDC    OIDCConfig
 
 	AvailableIDPs map[string]bool
 
 	RedisSession RedisConfig
 }
 
-func NewConfigFromEnv(out io.Writer) (*Config, error) {
+func NewConfigFromEnv(ctx context.Context, out io.Writer) (*Config, error) {
 	var e configFromEnv
 	err := envconfig.Process("", &e)
 	if err != nil {
@@ -124,6 +130,11 @@ func NewConfigFromEnv(out io.Writer) (*Config, error) {
 			ClientID:     e.GitHubClientID,
 			ClientSecret: e.GitHubClientSecret,
 		},
+		OIDC: OIDCConfig{
+			ProviderURL:  e.OIDCProviderURL,
+			ClientID:     e.OIDCClientID,
+			ClientSecret: e.OIDCClientSecret,
+		},
 		DevMode:       e.DevMode,
 		AvailableIDPs: make(map[string]bool),
 	}
@@ -145,6 +156,7 @@ func NewConfigFromEnv(out io.Writer) (*Config, error) {
 	if !c.DevMode {
 		initTwitterClient(&c, out)
 		initGitHubConfig(&c, out)
+		initOpenIDConnectConfig(ctx, &c, out)
 		if len(c.AvailableIDPs) == 0 {
 			return nil, errors.New("No ID Provider is available")
 		}
@@ -219,6 +231,16 @@ type GitHubConfig struct {
 
 func (c GitHubConfig) Available() bool {
 	return c.ClientID != "" && c.ClientSecret != ""
+}
+
+type OIDCConfig struct {
+	ProviderURL  string
+	ClientID     string
+	ClientSecret string
+}
+
+func (c OIDCConfig) Available() bool {
+	return c.ProviderURL != "" && c.ClientID != "" && c.ClientSecret != ""
 }
 
 type RedisConfig struct {

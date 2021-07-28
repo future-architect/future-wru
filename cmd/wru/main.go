@@ -29,7 +29,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	c, err := wru.NewConfigFromEnv(os.Stdout)
+	c, err := wru.NewConfigFromEnv(ctx, os.Stdout)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, color.Error.Sprintf("Parse config error: %s", err.Error()))
 		os.Exit(1)
@@ -44,7 +44,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, color.Error.Sprintf("Connect session error: %s", err.Error()))
 		os.Exit(1)
 	}
-	userStorage, warnings := wru.NewUserStorageFromEnv(ctx, os.Stdout)
+	userStorage, warnings := wru.NewIdentityRegisterFromEnv(ctx, os.Stdout)
 	for _, w := range warnings {
 		fmt.Fprintln(os.Stderr, color.Warn.Sprintf("User parse warning: %s", w))
 	}

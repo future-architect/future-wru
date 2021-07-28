@@ -1,3 +1,5 @@
+// warning: use OAuth for authentication is not secure
+
 package wru
 
 import (
@@ -62,6 +64,7 @@ func githubCallback(c *Config, r *http.Request, loginInfo map[string]string) (gi
 	token, err := githubClient.Exchange(context.Background(), r.Form.Get("code"))
 	if err != nil {
 		err = fmt.Errorf("can't get access token: %w", err)
+		return
 	}
 
 	tokenSource := oauth2.StaticTokenSource(

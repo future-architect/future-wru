@@ -1,3 +1,5 @@
+// warning: use OAuth for authentication is not secure
+
 package wru
 
 import (

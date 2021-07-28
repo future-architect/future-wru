@@ -9,20 +9,21 @@ import (
 )
 
 type WruHandler struct {
-	c *Config
-	s SessionStorage
-	u *UserStorage
+	c  *Config
+	s  SessionStorage
+	ir *IdentityRegister
 }
 
 func (wh WruHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if wh.c.DevMode {
 		pages.ExecuteTemplate(w, "debug_login.html", &debugLoginPageContext{
-			Users: wh.u.AllUsers(),
+			Users: wh.ir.AllUsers(),
 		})
 	} else {
 		pages.ExecuteTemplate(w, "login.html", &loginPageContext{
 			Twitter: wh.c.Twitter.Available(),
 			GitHub: wh.c.GitHub.Available(),
+			OIDC: wh.c.OIDC.Available(),
 		})
 	}
 }
@@ -35,7 +36,7 @@ func (wh WruHandler) DebugLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	userID := r.Form.Get("userid")
-	user, err := wh.u.FindUserByID(userID)
+	user, err := wh.ir.FindUserByID(userID)
 	if err != nil {
 		http.Error(w, "user not found: " + userID, http.StatusNotFound)
 	}
@@ -72,6 +73,12 @@ func (wh WruHandler) FederatedLogin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		redirectUrl, loginInfo, err = gitHubLoginStart(wh.c)
+	case "oidc":
+		if !wh.c.OIDC.Available() {
+			http.Error(w, "OpenID Connect login is not configured", http.StatusBadRequest)
+			return
+		}
+		redirectUrl, loginInfo, err = oidcLoginStart(wh.c)
 	default:
 		http.Error(w, "undefined provider: " + idp, http.StatusBadRequest)
 		return
@@ -110,12 +117,19 @@ func (wh WruHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		}
 		idp = GitHub
 		idpUser, _, err = githubCallback(wh.c, r, ses.Data)
+	case "oidc":
+		if !wh.c.GitHub.Available() {
+			http.Error(w, "OpenID Connect login is not configured", http.StatusBadRequest)
+			return
+		}
+		idp = OIDC
+		idpUser, _, err = oidcCallback(wh.c, r, ses.Data)
 	default:
 		http.Error(w, "undefined provider: " + idpName, http.StatusBadRequest)
 		return
 	}
 
-	user, err := wh.u.FindUserOf(idp, idpUser)
+	user, err := wh.ir.FindUserOf(idp, idpUser)
 	if err != nil {
 		http.Error(w, "user not found: " + idpUser + " of " + idpName, http.StatusNotFound)
 		return
@@ -164,7 +178,7 @@ func (wh WruHandler) Logout(w http.ResponseWriter, r *http.Request) {
 
 func (wh WruHandler) User(w http.ResponseWriter, r *http.Request) {
 	_, ses := GetSessionInfo(r)
-	u, err := wh.u.FindUserByID(ses.UserID)
+	u, err := wh.ir.FindUserByID(ses.UserID)
 
 	if err != nil {
 		http.Error(w, "user not found: " + ses.UserID, http.StatusNotFound)
@@ -229,11 +243,11 @@ func (wh WruHandler) SessionLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 
-func AuthRouter(c *Config, s SessionStorage, u *UserStorage, next http.Handler) http.Handler {
+func AuthRouter(c *Config, s SessionStorage, u *IdentityRegister, next http.Handler) http.Handler {
 	wh := &WruHandler{
-		c: c,
-		s: s,
-		u: u,
+		c:  c,
+		s:  s,
+		ir: u,
 	}
 	r := chi.NewRouter()
 	r.Route("/.wru", func(r chi.Router) {
@@ -264,7 +278,7 @@ func AuthRouter(c *Config, s SessionStorage, u *UserStorage, next http.Handler) 
 	return r
 }
 
-func NewHandler(c *Config, s SessionStorage, u *UserStorage) (http.Handler, error) {
+func NewHandler(c *Config, s SessionStorage, u *IdentityRegister) (http.Handler, error) {
 	h, err := NewProxy(c, s)
 	if err != nil {
 		return nil, err

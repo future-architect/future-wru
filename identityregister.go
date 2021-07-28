@@ -21,6 +21,7 @@ type IDPlatform string
 const (
 	Twitter IDPlatform = "Twitter"
 	GitHub  IDPlatform = "GitHub"
+	OIDC  IDPlatform = "OIDC"
 )
 
 var ErrUserNotFound = errors.New("user not found")
@@ -48,16 +49,16 @@ func (u User) WriteAsJson(w io.Writer) error {
 	return e.Encode(&u)
 }
 
-type UserStorage struct {
+type IdentityRegister struct {
 	fromID        map[string]*User
 	fromIDPUser   map[IDPlatform]map[string]*User
 	sourceBlobUrl string
 	cacheDuration time.Duration
 }
 
-func (s UserStorage) AllUsers() []*User {
-	result := make([]*User, 0, len(s.fromID))
-	for _, u := range s.fromID {
+func (ir IdentityRegister) AllUsers() []*User {
+	result := make([]*User, 0, len(ir.fromID))
+	for _, u := range ir.fromID {
 		result = append(result, u)
 	}
 	sort.Slice(result, func(i, j int) bool {
@@ -66,16 +67,16 @@ func (s UserStorage) AllUsers() []*User {
 	return result
 }
 
-func (s *UserStorage) FindUserByID(userID string) (*User, error) {
-	u, ok := s.fromID[userID]
+func (ir *IdentityRegister) FindUserByID(userID string) (*User, error) {
+	u, ok := ir.fromID[userID]
 	if !ok {
 		return nil, ErrUserNotFound
 	}
 	return u, nil
 }
 
-func (s *UserStorage) FindUserOf(idp IDPlatform, userID string) (*User, error) {
-	if idpUsers, ok := s.fromIDPUser[idp]; ok {
+func (ir *IdentityRegister) FindUserOf(idp IDPlatform, userID string) (*User, error) {
+	if idpUsers, ok := ir.fromIDPUser[idp]; ok {
 		if u, ok := idpUsers[userID]; ok {
 			return u, nil
 		}
@@ -85,12 +86,12 @@ func (s *UserStorage) FindUserOf(idp IDPlatform, userID string) (*User, error) {
 
 var userRE = regexp.MustCompile(`WRU_USER_\d+=(.*)`)
 
-func NewUserStorageFromEnv(ctx context.Context, out io.Writer) (*UserStorage, []string) {
-	return NewUserStorage(ctx, os.Environ(), out)
+func NewIdentityRegisterFromEnv(ctx context.Context, out io.Writer) (*IdentityRegister, []string) {
+	return NewIdentityRegister(ctx, os.Environ(), out)
 }
 
-func NewUserStorage(ctx context.Context, envs []string, out io.Writer) (*UserStorage, []string) {
-	us := &UserStorage{
+func NewIdentityRegister(ctx context.Context, envs []string, out io.Writer) (*IdentityRegister, []string) {
+	ir := &IdentityRegister{
 		fromID: make(map[string]*User),
 		fromIDPUser: map[IDPlatform]map[string]*User{},
 	}
@@ -113,35 +114,35 @@ func NewUserStorage(ctx context.Context, envs []string, out io.Writer) (*UserSto
 					continue
 				}
 			}*/
-			us.sourceBlobUrl = path
+			ir.sourceBlobUrl = path
 			users, err := readUsersFromBlob(ctx, path)
 			if err != nil {
 				// todo: warning
 				continue
 			}
 			for _, u := range users {
-				us.appendUser(u)
+				ir.appendUser(u)
 			}
 		}
 		u := parseUserFromEnv(env)
 		if u != nil {
-			us.appendUser(u)
+			ir.appendUser(u)
 			if out != nil {
-				color.Fprintf(out, "  (User) '%s'(%s) @ %s (scopes: %s)\n", u.DisplayName, u.UserID, u.Organization, strings.Join(u.Scopes, ", "))
+				color.Fprintf(out, "  '%s'(%s) @ %s (scopes: %s)\n", u.DisplayName, u.UserID, u.Organization, strings.Join(u.Scopes, ", "))
 			}
 		}
 	}
-	return us, warnings
+	return ir, warnings
 }
 
-func (us *UserStorage) appendUser(u *User) {
-	us.fromID[u.UserID] = u
+func (ir *IdentityRegister) appendUser(u *User) {
+	ir.fromID[u.UserID] = u
 	for _, service := range u.FederatedUserAccounts {
 		if service.Service != "" {
-			if _, ok := us.fromIDPUser[service.Service]; !ok {
-				us.fromIDPUser[service.Service] = make(map[string]*User)
+			if _, ok := ir.fromIDPUser[service.Service]; !ok {
+				ir.fromIDPUser[service.Service] = make(map[string]*User)
 			}
-			us.fromIDPUser[service.Service][service.Account] = u
+			ir.fromIDPUser[service.Service][service.Account] = u
 		}
 	}
 }
@@ -221,6 +222,11 @@ func parseUsersFromBlob(r io.Reader) ([]*User, error) {
 						Service: GitHub,
 						Account: r,
 					})
+				case "oidc":
+					u.FederatedUserAccounts = append(u.FederatedUserAccounts, FederatedAccount{
+						Service: OIDC,
+						Account: r,
+					})
 				}
 			}
 		}
@@ -271,6 +277,11 @@ func parseUserFromEnv(env string) *User {
 		case "github":
 			u.FederatedUserAccounts = append(u.FederatedUserAccounts, FederatedAccount{
 				Service: GitHub,
+				Account: elems[1],
+			})
+		case "oidc":
+			u.FederatedUserAccounts = append(u.FederatedUserAccounts, FederatedAccount{
+				Service: OIDC,
 				Account: elems[1],
 			})
 		}

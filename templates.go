@@ -22,6 +22,7 @@ var pages *template.Template
 type loginPageContext struct {
 	GitHub  bool
 	Twitter bool
+	OIDC    bool
 }
 
 type debugLoginPageContext struct {
