@@ -40,7 +40,10 @@ func (wh WruHandler) DebugLogin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, "user not found: " + userID, http.StatusNotFound)
 	}
-	newID, oldInfo, err := wh.s.StartSession(r.Context(), id, user, r)
+	loginInfo := map[string]string{
+		"login-idp": "debug",
+	}
+	newID, oldInfo, err := wh.s.StartSession(r.Context(), id, user, r, loginInfo)
 	if err != nil {
 		http.Error(w, "login error: " + err.Error(), http.StatusBadRequest)
 		return
@@ -57,6 +60,16 @@ func (wh WruHandler) DebugLogin(w http.ResponseWriter, r *http.Request) {
 func (wh WruHandler) FederatedLogin(w http.ResponseWriter, r *http.Request) {
 	idp := chi.URLParam(r, "provider")
 	oldSessionID, _ := GetSessionInfo(r)
+	if oldSessionID == "" {
+		var err error
+		oldSessionID, err = wh.s.StartLogin(r.Context(), map[string]string{
+			"landingURL": wh.c.DefaultLandingPage,
+		})
+		if err != nil {
+			http.Error(w, "session storage access error: " + err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
 	var redirectUrl string
 	var loginInfo map[string]string
 	var err error
@@ -102,13 +115,14 @@ func (wh WruHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	var idpUser string
 	var err error
 	var idp IDPlatform
+	var newLoginInfo map[string]string
 	switch idpName {
 	case "twitter":
 		if !wh.c.Twitter.Available() {
 			http.Error(w, "Twitter login is not configured", http.StatusBadRequest)
 			return
 		}
-		idpUser, _, err = twitterCallback(wh.c, r, ses.Data)
+		idpUser, newLoginInfo, err = twitterCallback(wh.c, r, ses.Data)
 		idp = Twitter
 	case "github":
 		if !wh.c.GitHub.Available() {
@@ -116,14 +130,14 @@ func (wh WruHandler) Callback(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		idp = GitHub
-		idpUser, _, err = githubCallback(wh.c, r, ses.Data)
+		idpUser, newLoginInfo, err = githubCallback(wh.c, r, ses.Data)
 	case "oidc":
 		if !wh.c.GitHub.Available() {
 			http.Error(w, "OpenID Connect login is not configured", http.StatusBadRequest)
 			return
 		}
 		idp = OIDC
-		idpUser, _, err = oidcCallback(wh.c, r, ses.Data)
+		idpUser, newLoginInfo, err = oidcCallback(wh.c, r, ses.Data)
 	default:
 		http.Error(w, "undefined provider: " + idpName, http.StatusBadRequest)
 		return
@@ -135,7 +149,7 @@ func (wh WruHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newID, oldInfo, err := wh.s.StartSession(r.Context(), id, user, r)
+	newID, oldInfo, err := wh.s.StartSession(r.Context(), id, user, r, newLoginInfo)
 	SetSessionID(r.Context(), w, newID, wh.c, ActiveSession)
 	log.Printf("🐣 login as %s of %s\n", idpUser, idpName)
 	SetSessionID(r.Context(), w, newID, wh.c, ActiveSession)
@@ -208,8 +222,7 @@ func (wh WruHandler) Sessions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if isHTML(r) {
-		err := pages.ExecuteTemplate(w, "user_sessions.html", sessions)
-		log.Println(err)
+		pages.ExecuteTemplate(w, "user_sessions.html", sessions)
 	} else {
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		AllUserSessions(sessions).WriteAsJson(w)

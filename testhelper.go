@@ -57,7 +57,8 @@ func login(t *testing.T, userID string) (context.Context, *ServerlessSessionStor
 		Scopes:                []string{"login"},
 	}
 
-	sid, _, err := s.StartSession(ctx, oldSessionID, user, r)
+	loginInfo := map[string]string{"login-idp": "debug"}
+	sid, _, err := s.StartSession(ctx, oldSessionID, user, r, loginInfo)
 	assert.NoError(t, err)
 	assert.NotEqual(t, "", sid)
 	return ctx, s, sid, err

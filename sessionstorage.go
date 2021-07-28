@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ymotongpoo/datemaki"
@@ -57,6 +59,14 @@ func (s SingleSessionData) OS() string {
 
 func (s SingleSessionData) Browser() string {
 	return s.LoginInfo["browser"]
+}
+
+func (s SingleSessionData) IdP() string {
+	return s.LoginInfo["login-idp"]
+}
+
+func (s SingleSessionData) Location() string {
+	return s.LoginInfo["country"] + "(" + s.LoginInfo["ip"] + ")"
 }
 
 type AllUserSessions []SingleSessionData
@@ -121,6 +131,30 @@ func parseDirective(src string) (*Directive, error) {
 	}, nil
 }
 
+func getGeoLocation(c *Config, r *http.Request) (string, string) {
+	var remoteAddr string
+	f := r.Header.Get("Forwarded")
+	if f == "" {
+		f = r.Header.Get("X-Forwarded-For")
+	}
+	if f == "" {
+		remoteAddr = r.RemoteAddr
+	} else {
+		ips := strings.Split(f, ",")
+		remoteAddr = strings.TrimSpace(ips[0]) // todo: select proxy if needed
+	}
+
+	if c.GeoIPDB == nil {
+		return "No GeoIP DB", remoteAddr
+	}
+	ip := net.ParseIP(remoteAddr)
+	record, err := c.GeoIPDB.Country(ip)
+	if err != nil {
+		return "GeoIP request error", remoteAddr
+	}
+	return record.Country.Names["en"], remoteAddr
+}
+
 type SessionStorage interface {
 	// StartLogin is called before login session
 	// info keeps information like redirect URL
@@ -128,7 +162,7 @@ type SessionStorage interface {
 	// AddLoginInfo adds extra login information for IDP.
 	AddLoginInfo(ctx context.Context, oldSessionID string, info map[string]string) (newSessionID string, err error)
 	// StartSessionAndRedirect is called after authorization and it renews login session ID and return info that is stored in StartLogin
-	StartSession(ctx context.Context, oldSessionID string, user *User, r *http.Request) (newSessionID string, info map[string]string, err error)
+	StartSession(ctx context.Context, oldSessionID string, user *User, r *http.Request, newLoginInfo map[string]string) (newSessionID string, info map[string]string, err error)
 	Logout(ctx context.Context, sessionID string) error
 	GetUserSessions(ctx context.Context, userID string) ([]SingleSessionData, error)
 	FindBySessionToken(ctx context.Context, sessionID string) (*Session, error)
@@ -164,7 +198,7 @@ func (s RedisSessionStorage) AddLoginInfo(ctx context.Context, oldSessionID stri
 	panic("implement me")
 }
 
-func (s RedisSessionStorage) StartSession(ctx context.Context, oldSessionID string, user *User, r *http.Request) (sessionID string, info map[string]string, err error) {
+func (s RedisSessionStorage) StartSession(ctx context.Context, oldSessionID string, user *User, r *http.Request, newLoginInfo map[string]string) (sessionID string, info map[string]string, err error) {
 	panic("implement me")
 }
 

@@ -125,7 +125,7 @@ func (s ServerlessSessionStorage) AddLoginInfo(ctx context.Context, oldSessionID
 	return sid, nil
 }
 
-func (s *ServerlessSessionStorage) StartSession(ctx context.Context, oldSessionID string, user *User, r *http.Request) (sessionID string, info map[string]string, err error) {
+func (s *ServerlessSessionStorage) StartSession(ctx context.Context, oldSessionID string, user *User, r *http.Request, newLoginInfo map[string]string) (sessionID string, info map[string]string, err error) {
 	loginSession := &SingleSessionData{
 		ID: oldSessionID,
 	}
@@ -146,11 +146,17 @@ func (s *ServerlessSessionStorage) StartSession(ctx context.Context, oldSessionI
 
 	ua := user_agent.New(r.Header.Get("User-Agent"))
 	browser, version := ua.Browser()
+	country, ip := getGeoLocation(s.config, r)
 	loginInfo := map[string]string{
 		"browser":  browser,
 		"version":  version,
 		"os":       ua.OS(),
 		"platform": ua.Platform(),
+		"country":  country,
+		"ip":       ip,
+	}
+	for k, v := range newLoginInfo {
+		loginInfo[k] = v
 	}
 
 	now := currentTime(ctx)

@@ -2,3 +2,4 @@
 .DS_Store
 Thumbds.db
 .env*
+GeoLite2-Country.mmdb

@@ -12,6 +12,7 @@ import (
 
 	"github.com/gookit/color"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/oschwald/geoip2-golang"
 )
 
 type ClientSessionFieldType int
@@ -54,6 +55,8 @@ type configFromEnv struct {
 	OIDCProviderURL  string `envconfig:"WRU_OIDC_PROVIDER_URL"`
 	OIDCClientID     string `envconfig:"WRU_OIDC_CLIENT_ID"`
 	OIDCClientSecret string `envconfig:"WRU_OIDC_CLIENT_SECRET"`
+
+	GeoIPDatabase string `envconfig:"WRU_GEIIP_DATABASE"`
 }
 
 type Config struct {
@@ -87,6 +90,8 @@ type Config struct {
 	AvailableIDPs map[string]bool
 
 	RedisSession RedisConfig
+
+	GeoIPDB *geoip2.Reader
 }
 
 func NewConfigFromEnv(ctx context.Context, out io.Writer) (*Config, error) {
@@ -104,6 +109,15 @@ func NewConfigFromEnv(ctx context.Context, out io.Writer) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	var db *geoip2.Reader
+	if e.GeoIPDatabase != "" {
+		db, err = geoip2.Open(e.GeoIPDatabase)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	c := Config{
 		Port:                       e.Port,
 		Host:                       e.Host,
@@ -137,9 +151,11 @@ func NewConfigFromEnv(ctx context.Context, out io.Writer) (*Config, error) {
 		},
 		DevMode:       e.DevMode,
 		AvailableIDPs: make(map[string]bool),
+		GeoIPDB: db,
 	}
 
 	if out != nil {
+		color.Fprintf(out, "<blue>Host:</> %s\n", e.Host)
 		color.Fprintf(out, "<blue>Port:</> %d\n", e.Port)
 		if c.TlsCert != "" && c.TlsKey != "" {
 			color.Fprintf(out, "<blue>TLS:</> <green>enabled</>\n")
@@ -150,6 +166,11 @@ func NewConfigFromEnv(ctx context.Context, out io.Writer) (*Config, error) {
 		color.Fprintf(out, "<blue>Forward To:</>\n")
 		for _, r := range c.ForwardTo {
 			color.Fprintf(out, "  <green>%s</> => %s (%s)\n", r.Path, r.Host.String(), strings.Join(r.Scopes, ", "))
+		}
+		if c.GeoIPDB != nil {
+			color.Fprintf(out, "<blue>GeoIP:</> <green>enabled(%s)</>\n", e.GeoIPDatabase)
+		} else {
+			color.Fprintf(out, "<blue>GeoIP:</> <red>disabled</>\n")
 		}
 	}
 

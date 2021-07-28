@@ -13,6 +13,7 @@ require (
 	github.com/gookit/color v1.4.2
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/mssola/user_agent v0.5.3
+	github.com/oschwald/geoip2-golang v1.5.0 // indirect
 	github.com/pquerna/cachecontrol v0.1.0 // indirect
 	github.com/rs/xid v1.3.0
 	github.com/shibukawa/uuid62 v0.0.0-20190628130809-2b77c8679a0f

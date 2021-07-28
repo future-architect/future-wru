@@ -60,7 +60,9 @@
 				minmax(150px, 1fr)
 				minmax(150px, 1fr)
 				minmax(150px, 1fr)
+				minmax(50px, 0.5fr)
 				minmax(150px, 1fr)
+				minmax(50px, 0.5fr)
 				minmax(150px, 1fr);
         }
 
@@ -121,6 +123,8 @@
                 <th>Last Access</th>
                 <th>OS</th>
                 <th>Browser</th>
+                <th>Country</th>
+                <th>IdP</th>
                 <th></th>
             </tr>
             </thead>
@@ -130,6 +134,8 @@
                 <td>{{ .LastAccessAtFormat }}({{ .LastAccessAtForHuman }})</td>
                 <td>{{ .OS }}</td>
                 <td>{{ .Browser }}</td>
+                <td>{{ .Location }}</td>
+                <td>{{ .IdP }}</td>
                 <td>{{ if .CurrentSession }} Current session {{ else }}<form action="/.wru/user/sessions/{{ .ID }}/logout" method="post"><button type="submit" class="button" data-id="{{ .ID }}">Logout</button></form>{{ end }}</td>
             </tr>{{end}}
             </tbody>
