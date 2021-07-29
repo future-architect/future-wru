@@ -1,0 +1,2 @@
+id,name,mail,org,scopes,twitter,github
+testuser1,test user1,testuser1@example.com,R&D,"admin,user,org:rd",testuser1,testuser1

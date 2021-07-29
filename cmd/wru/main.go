@@ -18,6 +18,10 @@ import (
 	_ "gocloud.dev/docstore/gcpfirestore"
 	_ "gocloud.dev/docstore/memdocstore"
 	_ "gocloud.dev/docstore/mongodocstore"
+
+	_ "gocloud.dev/blob/fileblob"
+	_ "gocloud.dev/blob/gcsblob"
+	_ "gocloud.dev/blob/s3blob"
 )
 
 func init() {
@@ -44,14 +48,18 @@ func main() {
 		fmt.Fprintln(os.Stderr, color.Error.Sprintf("Connect session error: %s", err.Error()))
 		os.Exit(1)
 	}
-	userStorage, warnings := wru.NewIdentityRegisterFromEnv(ctx, os.Stdout)
+	userStorage, warnings, err := wru.NewIdentityRegister(ctx, c, os.Stdout)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, color.Error.Sprintf("Read user table error: %s", err.Error()))
+		os.Exit(1)
+	}
 	for _, w := range warnings {
 		fmt.Fprintln(os.Stderr, color.Warn.Sprintf("User parse warning: %s", w))
 	}
 	handler, err := wru.NewHandler(c, sessionStorage, userStorage)
 
 	srv := &http.Server{
-		Addr: fmt.Sprintf(":%d", c.Port),
+		Addr:    fmt.Sprintf(":%d", c.Port),
 		Handler: handler,
 	}
 
@@ -85,7 +93,7 @@ func main() {
 		}
 	}()
 	<-ctx.Done()
-	wait, cancel := context.WithTimeout(context.Background(), 10 * time.Second)
+	wait, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(wait); err != nil {
 		fmt.Fprintln(os.Stderr, color.Error.Sprintf("Shutdown Server Error: %v", err))

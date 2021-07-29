@@ -6,14 +6,18 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net/url"
 	"os"
+	"path"
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
-	// "github.com/future-architect/gocloudurls"
 
+	"github.com/future-architect/gocloudurls"
 	"github.com/gookit/color"
+	"gocloud.dev/blob"
 )
 
 type IDPlatform string
@@ -21,10 +25,13 @@ type IDPlatform string
 const (
 	Twitter IDPlatform = "Twitter"
 	GitHub  IDPlatform = "GitHub"
-	OIDC  IDPlatform = "OIDC"
+	OIDC    IDPlatform = "OIDC"
 )
 
-var ErrUserNotFound = errors.New("user not found")
+var (
+	ErrUserNotFound = errors.New("user not found")
+	ErrNotModified = errors.New("not modified")
+)
 
 type FederatedAccount struct {
 	Service IDPlatform `json:"service"`
@@ -50,13 +57,16 @@ func (u User) WriteAsJson(w io.Writer) error {
 }
 
 type IdentityRegister struct {
-	fromID        map[string]*User
-	fromIDPUser   map[IDPlatform]map[string]*User
-	sourceBlobUrl string
-	cacheDuration time.Duration
+	fromID         map[string]*User
+	fromIDPUser    map[IDPlatform]map[string]*User
+	sourceBlobUrl  string
+	fileModifiedAt time.Time
+	lock           *sync.RWMutex
 }
 
 func (ir IdentityRegister) AllUsers() []*User {
+	ir.lock.RLock()
+	defer ir.lock.RUnlock()
 	result := make([]*User, 0, len(ir.fromID))
 	for _, u := range ir.fromID {
 		result = append(result, u)
@@ -68,6 +78,8 @@ func (ir IdentityRegister) AllUsers() []*User {
 }
 
 func (ir *IdentityRegister) FindUserByID(userID string) (*User, error) {
+	ir.lock.RLock()
+	defer ir.lock.RUnlock()
 	u, ok := ir.fromID[userID]
 	if !ok {
 		return nil, ErrUserNotFound
@@ -76,6 +88,8 @@ func (ir *IdentityRegister) FindUserByID(userID string) (*User, error) {
 }
 
 func (ir *IdentityRegister) FindUserOf(idp IDPlatform, userID string) (*User, error) {
+	ir.lock.RLock()
+	defer ir.lock.RUnlock()
 	if idpUsers, ok := ir.fromIDPUser[idp]; ok {
 		if u, ok := idpUsers[userID]; ok {
 			return u, nil
@@ -86,14 +100,85 @@ func (ir *IdentityRegister) FindUserOf(idp IDPlatform, userID string) (*User, er
 
 var userRE = regexp.MustCompile(`WRU_USER_\d+=(.*)`)
 
-func NewIdentityRegisterFromEnv(ctx context.Context, out io.Writer) (*IdentityRegister, []string) {
-	return NewIdentityRegister(ctx, os.Environ(), out)
+func NewIdentityRegister(ctx context.Context, c *Config, out io.Writer) (*IdentityRegister, []string, error) {
+	if c != nil && c.UserTable != "" {
+		return NewIdentityRegisterFromConfig(ctx, c, out)
+	}
+	return NewIdentityRegisterFromEnv(ctx, os.Environ(), out)
 }
 
-func NewIdentityRegister(ctx context.Context, envs []string, out io.Writer) (*IdentityRegister, []string) {
+func NewIdentityRegisterFromConfig(ctx context.Context, c *Config, out io.Writer) (*IdentityRegister, []string, error) {
 	ir := &IdentityRegister{
-		fromID: make(map[string]*User),
+		fromID:      make(map[string]*User),
 		fromIDPUser: map[IDPlatform]map[string]*User{},
+		lock:        &sync.RWMutex{},
+	}
+	var warnings []string
+	if !strings.HasPrefix(c.UserTable, ".") && !strings.HasPrefix(c.UserTable, "/") {
+		var err error
+		c.UserTable, err = gocloudurls.NormalizeBlobURL(c.UserTable, os.Environ())
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	ir.sourceBlobUrl = c.UserTable
+	users, modTime, err := readUsersFromBlob(ctx, c.UserTable, ir.fileModifiedAt)
+	if err != nil {
+		return nil, nil, err
+	}
+	ir.fileModifiedAt = modTime
+	for _, u := range users {
+		ir.appendUser(u)
+	}
+	if out != nil {
+		color.Fprintf(out, "Read %d users from %s\n", len(users), c.UserTable)
+	}
+	if c.UserTableReloadTerm > time.Second {
+		go func() {
+			t := time.NewTicker(c.UserTableReloadTerm)
+			defer t.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-t.C:
+					ir2 := &IdentityRegister{
+						fromID:      make(map[string]*User),
+						fromIDPUser: map[IDPlatform]map[string]*User{},
+					}
+					users, modTime, err := readUsersFromBlob(ctx, c.UserTable, ir.fileModifiedAt)
+					if err != nil {
+						if !errors.Is(err, ErrNotModified) {
+							if out != nil {
+								color.Fprintf(out, "<error>Reload user table error: %s</>\n", err.Error())
+							}
+							return
+						} else {
+							// log.Println("file is not modified")
+							continue
+						}
+					}
+					for _, u := range users {
+						ir2.appendUser(u)
+					}
+					color.Fprintf(out, "Read %d users from %s\n", len(users), c.UserTable)
+					ir.lock.Lock()
+					ir.fromID = ir2.fromID
+					ir.fromIDPUser = ir2.fromIDPUser
+					ir.fileModifiedAt = modTime
+					ir.lock.Unlock()
+				}
+			}
+		}()
+	}
+	return ir, warnings, nil
+}
+
+func NewIdentityRegisterFromEnv(ctx context.Context, envs []string, out io.Writer) (*IdentityRegister, []string, error) {
+	ir := &IdentityRegister{
+		fromID:      make(map[string]*User),
+		fromIDPUser: map[IDPlatform]map[string]*User{},
+		lock:        &sync.RWMutex{},
 	}
 	var warnings []string
 
@@ -102,28 +187,6 @@ func NewIdentityRegister(ctx context.Context, envs []string, out io.Writer) (*Id
 	}
 
 	for _, env := range envs {
-		if strings.HasPrefix(env, "WRU_USER_FILE=") {
-			path := strings.TrimPrefix(env, "WRU_USER_FILE=")
-			/* todo: blob support
-			if !strings.HasPrefix(path, ".") && !strings.HasPrefix(path, "/") {
-
-				var err error
-				path, err = gocloudurls.NormalizeBlobURL(path, envs)
-				if err != nil {
-					// todo: warning
-					continue
-				}
-			}*/
-			ir.sourceBlobUrl = path
-			users, err := readUsersFromBlob(ctx, path)
-			if err != nil {
-				// todo: warning
-				continue
-			}
-			for _, u := range users {
-				ir.appendUser(u)
-			}
-		}
 		u := parseUserFromEnv(env)
 		if u != nil {
 			ir.appendUser(u)
@@ -132,7 +195,7 @@ func NewIdentityRegister(ctx context.Context, envs []string, out io.Writer) (*Id
 			}
 		}
 	}
-	return ir, warnings
+	return ir, warnings, nil
 }
 
 func (ir *IdentityRegister) appendUser(u *User) {
@@ -147,19 +210,70 @@ func (ir *IdentityRegister) appendUser(u *User) {
 	}
 }
 
-func readUsersFromBlob(ctx context.Context, path string) ([]*User, error) {
-	/*
-		todo: blob support
-		if !strings.HasPrefix(path, ".") && !strings.HasPrefix(path, "/") {
-
-		}*/
-	f, err := os.Open(path)
+func SplitBlobPath(resourceUrl string) (string, string, error) {
+	u, err := url.Parse(resourceUrl)
 	if err != nil {
-		return nil, err
-
+		return "", "", err
 	}
-	defer f.Close()
-	return parseUsersFromBlob(f)
+	if u.Scheme != "file" {
+		resourcePath := u.Path
+		u.Path = ""
+		return u.String(), resourcePath, nil
+	} else {
+		dir := path.Dir(u.Path)
+		base := path.Base(u.Path)
+		u.Path = dir
+		return u.String(), base, nil
+	}
+}
+
+func readUsersFromBlob(ctx context.Context, path string, modifiedAt time.Time) ([]*User, time.Time, error) {
+	if !strings.HasPrefix(path, ".") && !strings.HasPrefix(path, "/") {
+		bucketUrl, res, err := SplitBlobPath(path)
+		if err != nil {
+			return nil, time.Time{}, err
+		}
+		b, err := blob.OpenBucket(ctx, bucketUrl)
+		if err != nil {
+			return nil, time.Time{}, err
+		}
+		defer b.Close()
+
+		a, err := b.Attributes(ctx, res)
+		if err != nil {
+			return nil, time.Time{}, err
+		}
+		if modifiedAt.Before(a.ModTime) {
+			r, err := b.NewReader(ctx, res, &blob.ReaderOptions{})
+			if err != nil {
+				return nil, time.Time{}, err
+			}
+			defer r.Close()
+			users, err := parseUsersFromBlob(r)
+			if err != nil {
+				return nil, time.Time{}, err
+			}
+			return users, a.ModTime, err
+		}
+	} else {
+		s, err := os.Stat(path)
+		if err != nil {
+			return nil, time.Time{}, err
+		}
+		if modifiedAt.Before(s.ModTime()) {
+			f, err := os.Open(path)
+			if err != nil {
+				return nil, time.Time{}, err
+			}
+			defer f.Close()
+			users, err := parseUsersFromBlob(f)
+			if err != nil {
+				return nil, time.Time{}, err
+			}
+			return users, s.ModTime(), nil
+		}
+	}
+	return nil, time.Time{}, ErrNotModified
 }
 
 func parseUsersFromBlob(r io.Reader) ([]*User, error) {
@@ -185,6 +299,10 @@ func parseUsersFromBlob(r io.Reader) ([]*User, error) {
 			keys[i] = "scope"
 		} else if h == "twitter" {
 			keys[i] = "twitter"
+		} else if h == "github" {
+			keys[i] = "github"
+		} else if h == "oidc" {
+			keys[i] = "oidc"
 		}
 	}
 	if !foundID {

@@ -1,2 +1,4 @@
-id,name,mail,org,scopes,twitter,github
-user1,test user,user1@example.com,R&D,"admin,user,org:rd",user1,user1
+id,name,mail,org,scopes,twitter,github,oidc
+user1,test user1,testuser1@example.com,R&D,"admin,user,org:rd",testuser1,testuser1,testuser01@example.com
+user2,test user2,testuser2@example.com,R&D,"admin,user,org:rd",testuser2,testuser2,testuser02@example.com
+user2,test user3,testuser3@example.com,R&D,"admin,user,org:rd",shibu_jp,shibukawa,testuser03@example.com

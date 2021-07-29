@@ -3,6 +3,7 @@ package wru
 import (
 	"context"
 	"io"
+	"time"
 
 	// _ "gocloud.dev/blob/fileblob"
 	"reflect"
@@ -79,7 +80,7 @@ func TestNewLocalUserStorage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s, _ := NewIdentityRegister(context.Background(), tt.args.envs, io.Discard)
+			s, _, _ := NewIdentityRegisterFromEnv(context.Background(), tt.args.envs, io.Discard)
 			u, err := s.FindUserByID(tt.args.requestUserID)
 			if tt.wantErr == nil {
 				assert.NoError(t, err)
@@ -178,19 +179,23 @@ func Test_readUsersFromBlob(t *testing.T) {
 		{
 			name: "from path: success",
 			args: args{
-				path: "./testdata/testuser.csv",
+				path: "./testdata/testuser_for_ut.csv",
 			},
 			want: []*User{
 				{
-					DisplayName:          "test user",
+					DisplayName:          "test user1",
 					Organization:         "R&D",
-					UserID:               "user1",
-					Email:                "user1@example.com",
+					UserID:               "testuser1",
+					Email:                "testuser1@example.com",
 					Scopes:               []string{"admin", "user", "org:rd"},
 					FederatedUserAccounts: []FederatedAccount{
 						{
 							Service: Twitter,
-							Account: "user1",
+							Account: "testuser1",
+						},
+						{
+							Service: GitHub,
+							Account: "testuser1",
 						},
 					},
 				},
@@ -207,14 +212,12 @@ func Test_readUsersFromBlob(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := readUsersFromBlob(context.Background(), tt.args.path)
+			got, _, err := readUsersFromBlob(context.Background(), tt.args.path, time.Time{})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("readUsersFromBlob() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("readUsersFromBlob() got = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -223,7 +226,7 @@ func TestUserStorage_FindUserAPIs(t *testing.T) {
 	envs := []string{
 		`WRU_USER_1=id:user1,name:test user,mail:user1@example.com,org:R&D,scope:admin,scope:user,scope:org:rd,twitter:user1`,
 	}
-	us, warnings := NewIdentityRegister(context.Background(), envs, io.Discard)
+	us, warnings, _ := NewIdentityRegisterFromEnv(context.Background(), envs, io.Discard)
 	assert.Nil(t, warnings)
 	u, err := us.FindUserOf(Twitter, "user1")
 	assert.NoError(t, err)

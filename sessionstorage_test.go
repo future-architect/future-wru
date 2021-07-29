@@ -38,7 +38,7 @@ func TestFederatedLoginSuccess(t *testing.T) {
 	r := dummyRequest()
 	user := dummyUser("user1")
 
-	newSessionID, loginInfo, err := s.StartSession(ctx, secondSessionID, user, r)
+	newSessionID, loginInfo, err := s.StartSession(ctx, secondSessionID, user, r, map[string]string{})
 	assert.NoError(t, err)
 	assert.NotEqual(t, "", newSessionID)
 	assert.NotEqual(t, firstSessionID, newSessionID)
@@ -65,7 +65,7 @@ func TestDebugLoginSuccess(t *testing.T) {
 	r := dummyRequest()
 	user := dummyUser("user1")
 
-	newSessionID, loginInfo, err := s.StartSession(ctx, oldSessionID, user, r)
+	newSessionID, loginInfo, err := s.StartSession(ctx, oldSessionID, user, r, map[string]string{})
 	assert.NoError(t, err)
 	assert.NotEqual(t, "", newSessionID)
 	assert.NotEqual(t, oldSessionID, newSessionID)
@@ -83,7 +83,7 @@ func TestLoginFail_NoStartLogin(t *testing.T) {
 	r := dummyRequest()
 	user := dummyUser("user1")
 
-	_, _, err = s.StartSession(ctx, "invalid-session", user, r)
+	_, _, err = s.StartSession(ctx, "invalid-session", user, r, map[string]string{})
 
 	assert.Error(t, err)
 }
@@ -102,9 +102,9 @@ func TestLoginFail_StartSessionTwice(t *testing.T) {
 	r := dummyRequest()
 	user := dummyUser("user1")
 
-	_, _, err = s.StartSession(ctx, oldSessionID, user, r)
+	_, _, err = s.StartSession(ctx, oldSessionID, user, r, map[string]string{})
 	assert.NoError(t, err)
-	_, _, err = s.StartSession(ctx, oldSessionID, user, r)
+	_, _, err = s.StartSession(ctx, oldSessionID, user, r, map[string]string{})
 	assert.Error(t, err)
 }
 
@@ -189,7 +189,7 @@ func TestSessionStorage_MultipleSession(t *testing.T) {
 	r := dummyRequest()
 	user := dummyUser("user1")
 
-	sid2, _, err := s.StartSession(ctx, oldSessionID, user, r)
+	sid2, _, err := s.StartSession(ctx, oldSessionID, user, r, map[string]string{})
 	assert.NoError(t, err)
 	assert.NotEqual(t, sid1, sid2)
 
