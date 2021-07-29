@@ -8,7 +8,7 @@ It provides seamless authentication experience between development environemnt a
 ## What is WRU for
 
 * For enterprise users
-    * Easy to inject users via CSV files on storage (local, S3, Cloud Storage)
+    * Easy to inject users via CSV files on storage (local, AWS S3, GCP Cloud Storage)
 
 * Not For consumer service users
     * It is not supporting creating user
@@ -18,7 +18,7 @@ It provides seamless authentication experience between development environemnt a
     * No password required (E2E test friendly)
 
 * For production
-    * It supports OpenID Connect to login.
+    * It supports OpenID Connect, some SNS (Twitter and GitHub for now) to login.
 
 ## Getting Started
 
@@ -80,7 +80,7 @@ Sample configuration:
 * A backend server is at http://server.example.com
 * User information is in S3 (and reread it every hour)
 * Session storage is in DynamoDB
-* Twitter/GitHub login is available
+* Twitter/GitHub/OpenID Connect login is available
 
 ```bash
 $ export WRU_DEV_MODE=false
@@ -91,6 +91,9 @@ $ export WRU_TWITTER_CONSUMER_KEY=1111111
 $ export WRU_TWITTER_CONSUMER_SECRET=22222222
 $ export WRU_GITHUB_CLIENT_ID=33333333
 $ export WRU_GITHUB_CLIENT_SECRET=44444444
+$ export WRU_OIDC_PROVIDER_URL=http://keycloak.example.com
+$ export WRU_OIDC_CLIENT_ID=55555555
+$ export WRU_OIDC_CLIENT_SECRET=66666666
 $ PORT=8000 HOST=https://example.com wru
 ```
 
@@ -120,7 +123,7 @@ This content is added to `Wru-Session` header field (you can modify via `WRU_SER
 Wru-Session: {"login_at":1212121,"id":"shibu","name":"Yoshiki Shibukawa","scopes":["user","admin"],data:{"access-count":"10"}}
 ```
 
-To read all content of this field, you can parse it via the following structure:
+To read all content of this field in Go, you can parse it via the following structure:
 
 ```go
 type Session struct {
@@ -134,7 +137,22 @@ type Session struct {
 	Scopes       []string          `json:"scopes"`
 	Data         map[string]string `json:"data"`
 }
+
+func ParseSession(r *http.Request) (*Session, error) {
+  h := r.Header.Get("Wru-Session")
+  if h != "" {
+    var s Session
+    err := json.NewDecoder(strings.NewReader(h)).Decode(&s)
+    if err != nil {
+      return nil, err
+    }
+    return &s, nil
+  }
+  return nil, err
+}
 ```
+
+
 
 ## Configuration
 
@@ -163,8 +181,8 @@ WRU_USER_1="id:user1,name:test user 1,mail:user1@example.com,org:R&D,scope:admin
 User table CSV file should have specific header row.
 
 ```csv
-id,name,mail,org,scopes,twitter,github
-user1,test user,user1@example.com,R&D,"admin,user,org:rd",user1,user1
+id,name,mail,org,scopes,twitter,github,oidc
+user1,test user,user1@example.com,R&D,"admin,user,org:rd",user1,user1,user1@example.com
 ```
 
 ## Backend Server Configuration
@@ -194,6 +212,17 @@ The callback address will be ``${HOST}/.wru/callback``. You should register the 
 
 * `WRU_GITHUB_CLIENT_ID`
 * `WRU_GITHUB_CLIENT_SECRET`
+
+#### OpenID Connect
+
+* `WRU_OIDC_PROVIDER_URL`
+* `WRU_OIDC_CLIENT_ID`
+* `WRU_OIDC_CLIENT_SECRET`
+
+### Extra Option
+
+* `WRU_GEIIP_DATABASE`: GeoIP2 or GeoLite2 file (.mmdb) to detect user location from IP address
+
 
 ## License
 
