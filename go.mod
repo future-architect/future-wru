@@ -3,6 +3,7 @@ module gitlab.com/osaki-lab/wru
 go 1.16
 
 require (
+	github.com/Songmu/gocredits v0.2.0 // indirect
 	github.com/coreos/go-oidc v2.2.1+incompatible // indirect
 	github.com/future-architect/gocloudurls v1.0.4
 	github.com/garyburd/go-oauth v0.0.0-20180319155456-bca2e7f09a17
