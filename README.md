@@ -170,8 +170,8 @@ func ParseSession(r *http.Request) (*Session, error) {
 WRU stores user information on-memory. You can add user via CSV or env vars.
 
 * `WRU_SESSION_STORAGE`: Session storage. Default is in memory. It supports DynamoDB, Firestore, MongoDB.
-* `WRU_USER_TABLE`: This is local file path to read CSV (Blob support is in plan).
-* `WRU_USER_TABLE_RELOAD_TERM`: Reload term (WIP)
+* `WRU_USER_TABLE`: This is local file path/Blob path(AWS S3, GCP Cloud Storage) to read CSV.
+* `WRU_USER_TABLE_RELOAD_TERM`: Reload term.
 * `WRU_USER_%d`: Add user via environment variable (for testing).
 
 If you add user via env var, you use comma separated tag list:
@@ -225,7 +225,7 @@ The callback address will be ``${HOST}/.wru/callback``. You should register the 
 
 * `WRU_GEIIP_DATABASE`: GeoIP2 or GeoLite2 file (.mmdb) to detect user location from IP address
 
-## User as Middleware
+## Use as Middleware
 
 wru can work as middleware of HTTP service. Sample is in `cmd/sampleapp`.
 
