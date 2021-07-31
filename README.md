@@ -2,7 +2,7 @@
 
 ![wru logo](doc/logo-small.png)
 
-WRU is an identity aware proxy for enterprise users.
+WRU is an identity aware reverse proxy/middleware for enterprise users.
 It provides seamless authentication experience between development environemnt and production environment.
 
 ## What is WRU for
@@ -20,7 +20,9 @@ It provides seamless authentication experience between development environemnt a
 * For production
     * It supports OpenID Connect, some SNS (Twitter and GitHub for now) to login.
 
-## Getting Started
+## Use as Reverse Proxy
+
+### Getting Started
 
 You can get wru by "go get".
 
@@ -42,12 +44,12 @@ starting wru server at https://localhost:8000
 
 `wru` command doesn't have command line options. You can control it via environment variables.
 
-## WRU modes
+### WRU modes
 
 WRU has two modes. This absorbs the difference of usecases and
 your web service always get only authorized requests.
 
-### WRU for local development
+#### WRU for local development
 
 ![dev-mode](doc/dialogs-dev-mode.png)
 
@@ -69,7 +71,7 @@ $ export WRU_USER_2="id:user2,name:test user 2,mail:user2@example.com,org:HR,sco
 $ PORT=8000 HOST=https://localhost:8000 wru
 ```
 
-### WRU for production
+#### WRU for production
 
 ![production-mode](doc/dialogs-production-mode.png)
 
@@ -97,14 +99,14 @@ $ export WRU_OIDC_CLIENT_SECRET=66666666
 $ PORT=8000 HOST=https://example.com wru
 ```
 
-## End Points for frontend
+### End Points for frontend
 
 * `/.wru/login`: Login page
 * `/.wru/logout`: Logout page (it works just GET access)
 * `/.wru/user`: User page (it supports HTML and JSON)
 * `/.wru/user/sessions`: User session page (it supports HTML and JSON)
 
-## Session Storage
+### Session Storage
 
 It supports session storage feature similar to browsers' cookie.
 
@@ -154,16 +156,16 @@ func ParseSession(r *http.Request) (*Session, error) {
 
 
 
-## Configuration
+### Configuration
 
-### Server Configuration
+#### Server Configuration
 
 * `PORT`: Port number that wru uses (default is 3000)
 * `HOST`: Host name that wru is avaialble (required). It is used for callback of OAuth/OpenID Connect.
 * `WRU_DEV_MODE`: Change mode (described bellow)
 * `WRU_TLS_CERT` and `WRU_TLS_KEY`: Launch TLS server
 
-## Storage Configuration
+### Storage Configuration
 
 WRU stores user information on-memory. You can add user via CSV or env vars.
 
@@ -185,12 +187,12 @@ id,name,mail,org,scopes,twitter,github,oidc
 user1,test user,user1@example.com,R&D,"admin,user,org:rd",user1,user1,user1@example.com
 ```
 
-## Backend Server Configuration
+### Backend Server Configuration
 
 * `WRU_FORWARD_TO`: Specify you backend server (required)
 * `WRU_SERVER_SESSION_FIELD`: Header field name that WRU adds to backend request (default is "Wru-Session")
 
-### Frontend User Experience Configuration
+#### Frontend User Experience Configuration
 
 * `WRU_DEFAULT_LANDING_PAGE`: WRU tries to redirect to referrer page after login. It is used when the path is not available (default is '/').
 * `WRU_LOGIN_TIMEOUT_TERM`: Login session token's expiration term (default is '10m')
@@ -198,31 +200,86 @@ user1,test user,user1@example.com,R&D,"admin,user,org:rd",user1,user1,user1@exam
 * `WRU_SESSION_ABSOLUTE_TIMEOUT_TERM`: Absolute session token's timeout term (default is '720h')
 * `WRU_HTML_TEMPLATE_FOLDER`: Login/User pages' template (default tempalte is embedded ones)
 
-### ID Provider Configuration
+#### ID Provider Configuration
 
 To enable ID provider connection, set the following env vars.
 The callback address will be ``${HOST}/.wru/callback``. You should register the URL in the setting screen of the ID provider.
 
-#### Twitter
+##### Twitter
 
 * `WRU_TWITTER_CONSUMER_KEY`
 * `WRU_TWITTER_CONSUMER_SECRET`
 
-#### GitHub
+##### GitHub
 
 * `WRU_GITHUB_CLIENT_ID`
 * `WRU_GITHUB_CLIENT_SECRET`
 
-#### OpenID Connect
+##### OpenID Connect
 
 * `WRU_OIDC_PROVIDER_URL`
 * `WRU_OIDC_CLIENT_ID`
 * `WRU_OIDC_CLIENT_SECRET`
 
-### Extra Option
+#### Extra Option
 
 * `WRU_GEIIP_DATABASE`: GeoIP2 or GeoLite2 file (.mmdb) to detect user location from IP address
 
+## User as Middleware
+
+wru can work as middleware of HTTP service. Sample is in `cmd/sampleapp`.
+
+`NewAuthorizationMiddleware()` returns required HTTP handler (that includes, login form, callback for OAuth2 and so on) and middleware.
+Don't apply the middleware to the wru's handler (it causes infinity loop).
+
+You can create `*wru.Config` by using the structure directly or `wru.NewConfigFromEnv()`.
+
+```go
+package main
+
+import (
+  "context"
+  "fmt"
+  "net/http"
+  "os"
+  "os/signal"
+
+  "github.com/go-chi/chi/v5"
+  "github.com/go-chi/chi/v5/middleware"
+  "gitlab.com/osaki-lab/wru"
+
+  // Select backend of session storage (docstore) and identity register (blob)
+  _ "gocloud.dev/docstore/memdocstore"
+)
+
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	r := chi.NewRouter()
+	c := &wru.Config{
+		Port:    3000,
+		Host:    "http://localhost:3000",
+		DevMode: true,
+		Users: []*wru.User{
+			{
+				DisplayName:  "Test User 1",
+				Organization: "Secret",
+				UserID:       "testuser01",
+				Email:        "testuser01@example.com",
+			},
+		},
+	}
+	wruHandler, authMiddleware := wru.NewAuthorizationMiddleware(ctx, c, os.Stdout)
+	r.Use(middleware.Logger)
+	r.Mount("/", wruHandler)
+	r.With(authMiddleware).Get("/", func(w http.ResponseWriter, r *http.Request) {
+		_, session := wru.GetSession(r)
+		w.Write([]byte("welcome " + session.UserID))
+	})
+    http.ListenAndServe(fmt.Sprintf(":%d", c.Port), r)
+}
+```
 
 ## License
 
