@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-func StartSessionAndRedirect(c *Config, s SessionStorage, w http.ResponseWriter, r *http.Request) {
+func startSessionAndRedirect(c *Config, s SessionStorage, w http.ResponseWriter, r *http.Request) {
 	sessionID, err := s.StartLogin(r.Context(), map[string]string{
 		"landingURL": r.RequestURI,
 	})
@@ -14,12 +14,12 @@ func StartSessionAndRedirect(c *Config, s SessionStorage, w http.ResponseWriter,
 		http.Error(w, "internal server error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	SetSessionID(r.Context(), w, sessionID, c, BeforeLogin)
+	setSessionID(r.Context(), w, sessionID, c, BeforeLogin)
 	http.Redirect(w, r, "/.wru/login", http.StatusFound)
 	return
 }
 
-func LookupSession(c *Config, s SessionStorage, r *http.Request) (string, *Session, bool) {
+func lookupSessionFromRequest(c *Config, s SessionStorage, r *http.Request) (string, *Session, bool) {
 	var sessionID string
 	for _, ck := range r.Cookies() {
 		if ck.Name == c.ClientSessionKey {

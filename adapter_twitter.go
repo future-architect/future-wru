@@ -28,7 +28,7 @@ func initTwitterClient(c *Config, out io.Writer) {
 				Secret: c.Twitter.ConsumerSecret,
 			},
 		}
-		c.AvailableIDPs["twitter"] = true
+		c.availableIDPs["twitter"] = true
 		if out != nil {
 			color.Fprint(out, "<blue>Twitter Login:</> <green>OK</>\n")
 		}

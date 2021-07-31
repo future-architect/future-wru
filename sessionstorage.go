@@ -111,6 +111,15 @@ type Session struct {
 	Scopes       []string          `json:"scopes"`
 	Status       SessionStatus     `json:"-"`
 	Data         map[string]string `json:"data"`
+	directrives  []*Directive      `json:"-"`
+}
+
+func (s *Session) AddSessionData(key, value string) {
+	s.directrives = append(s.directrives, &Directive{Key: key, Value: value})
+}
+
+func (s *Session) RemoveSessionData(key string) {
+	s.directrives = append(s.directrives, &Directive{Key: key, Value: ""})
 }
 
 type Directive struct {
@@ -144,11 +153,11 @@ func getGeoLocation(c *Config, r *http.Request) (string, string) {
 		remoteAddr = strings.TrimSpace(ips[0]) // todo: select proxy if needed
 	}
 
-	if c.GeoIPDB == nil {
+	if c.geoIPDB == nil {
 		return "No GeoIP DB", remoteAddr
 	}
 	ip := net.ParseIP(remoteAddr)
-	record, err := c.GeoIPDB.Country(ip)
+	record, err := c.geoIPDB.Country(ip)
 	if err != nil {
 		return "GeoIP request error", remoteAddr
 	}
@@ -161,12 +170,12 @@ type SessionStorage interface {
 	StartLogin(ctx context.Context, info map[string]string) (sessionID string, err error)
 	// AddLoginInfo adds extra login information for IDP.
 	AddLoginInfo(ctx context.Context, oldSessionID string, info map[string]string) (newSessionID string, err error)
-	// StartSessionAndRedirect is called after authorization and it renews login session ID and return info that is stored in StartLogin
+	// startSessionAndRedirect is called after authorization and it renews login session ID and return info that is stored in StartLogin
 	StartSession(ctx context.Context, oldSessionID string, user *User, r *http.Request, newLoginInfo map[string]string) (newSessionID string, info map[string]string, err error)
 	Logout(ctx context.Context, sessionID string) error
 	GetUserSessions(ctx context.Context, userID string) ([]SingleSessionData, error)
 	FindBySessionToken(ctx context.Context, sessionID string) (*Session, error)
-	UpdateSessionData(ctx context.Context, sessionID string, directives []string) (err error)
+	UpdateSessionData(ctx context.Context, sessionID string, directives []*Directive) (err error)
 	RenewSession(ctx context.Context, oldSessionID string) (sessionID string, err error)
 }
 
@@ -182,7 +191,7 @@ func NewSessionStorage(ctx context.Context, c *Config, out io.Writer) (SessionSt
 type RedisSessionStorage struct {
 }
 
-func (s RedisSessionStorage) UpdateSessionData(ctx context.Context, sessionID string, directives []string) (err error) {
+func (s RedisSessionStorage) UpdateSessionData(ctx context.Context, sessionID string, directives []*Directive) (err error) {
 	panic("implement me")
 }
 

@@ -50,11 +50,11 @@ func login(t *testing.T, userID string) (context.Context, *ServerlessSessionStor
 	r.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36")
 
 	user := &User{
-		DisplayName:           userID,
-		Organization:          "secret",
-		UserID:                userID,
-		Email:                 userID + "@example.com",
-		Scopes:                []string{"login"},
+		DisplayName:  userID,
+		Organization: "secret",
+		UserID:       userID,
+		Email:        userID + "@example.com",
+		Scopes:       []string{"login"},
 	}
 
 	loginInfo := map[string]string{"login-idp": "debug"}
@@ -63,7 +63,6 @@ func login(t *testing.T, userID string) (context.Context, *ServerlessSessionStor
 	assert.NotEqual(t, "", sid)
 	return ctx, s, sid, err
 }
-
 
 func dummyUser(userID string) *User {
 	user := &User{

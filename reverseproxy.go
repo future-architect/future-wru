@@ -30,7 +30,7 @@ func (p ProxyTransport) RoundTrip(req *http.Request) (res *http.Response, err er
 		r.WriteString(`{"status": "not found"}`)
 		return r.Result(), nil
 	}
-	sid, ses := GetSessionInfo(req)
+	sid, ses := GetSession(req)
 	if ses != nil {
 		sjson, _ := json.Marshal(ses)
 		req.Header.Set(p.c.ServerSessionField, string(sjson))
@@ -40,13 +40,21 @@ func (p ProxyTransport) RoundTrip(req *http.Request) (res *http.Response, err er
 		log.Println(err)
 	}
 	if p.s != nil {
-		p.s.UpdateSessionData(req.Context(), sid, res.Header.Values("Wru-Set-Session-Data"))
+		var directives []*Directive
+		for _, src := range res.Header.Values("Wru-Set-Session-Data") {
+			d, err := parseDirective(src)
+			if err != nil {
+				return res, err
+			}
+			directives = append(directives, d)
+		}
+		p.s.UpdateSessionData(req.Context(), sid, directives)
 		res.Header.Del("Wru-Set-Session-Data")
 	}
 	return res, nil
 }
 
-func NewProxy(config *Config, s SessionStorage) (http.Handler, error) {
+func NewReverseProxy(config *Config, s SessionStorage) (http.Handler, error) {
 	rp := &httputil.ReverseProxy{
 		Director: func(req *http.Request) {
 		},

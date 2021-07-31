@@ -19,13 +19,13 @@ func Test_parseForwardList(t *testing.T) {
 		src string
 	}
 	tests := []struct {
-		name string
-		args args
-		want []Route
+		name    string
+		args    args
+		want    []Route
 		wantErr bool
 	}{
 		{
-			name:"single route with role",
+			name: "single route with role",
 			args: args{
 				src: "/api => http://localhost:8000 (admin, user)",
 			},
@@ -38,7 +38,7 @@ func Test_parseForwardList(t *testing.T) {
 			},
 		},
 		{
-			name:"single route without role",
+			name: "single route without role",
 			args: args{
 				src: "/api => http://localhost:8000",
 			},
@@ -51,7 +51,7 @@ func Test_parseForwardList(t *testing.T) {
 			},
 		},
 		{
-			name:"wrong route without role",
+			name: "wrong route without role",
 			args: args{
 				src: "/api =>",
 			},
@@ -76,18 +76,18 @@ func Test_parseClientSessionHeader(t *testing.T) {
 		src string
 	}
 	tests := []struct {
-		name  string
-		args  args
-		want  string
+		name     string
+		args     args
+		want     string
 		wantType ClientSessionFieldType
-		wantErr bool
+		wantErr  bool
 	}{
 		{
 			name: "for header",
 			args: args{
 				src: "SESSIONID",
 			},
-			want: "SESSIONID",
+			want:     "SESSIONID",
 			wantType: CookieField,
 		},
 		{
@@ -95,7 +95,7 @@ func Test_parseClientSessionHeader(t *testing.T) {
 			args: args{
 				src: "WruSession@cookie",
 			},
-			want: "WruSession",
+			want:     "WruSession",
 			wantType: CookieField,
 		},
 		{
@@ -103,7 +103,7 @@ func Test_parseClientSessionHeader(t *testing.T) {
 			args: args{
 				src: "WruSession@cookie-with-js",
 			},
-			want: "WruSession",
+			want:     "WruSession",
 			wantType: CookieWithJSField,
 		},
 	}

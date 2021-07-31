@@ -15,20 +15,19 @@ import (
 
 func TestNewLocalUserStorage(t *testing.T) {
 	type args struct {
-		envs []string
+		envs          []string
 		requestUserID string
 	}
 	tests := []struct {
-		name string
-		args args
-		want *User
+		name    string
+		args    args
+		want    *User
 		wantErr error
 	}{
 		{
 			name: "init over env var: empty",
 			args: args{
-				envs: []string{
-				},
+				envs:          []string{},
 				requestUserID: "user1",
 			},
 			wantErr: ErrUserNotFound,
@@ -42,11 +41,11 @@ func TestNewLocalUserStorage(t *testing.T) {
 				requestUserID: "user1",
 			},
 			want: &User{
-				DisplayName:          "test user",
-				Organization:         "R&D",
-				UserID:               "user1",
-				Email:                "user1@example.com",
-				Scopes:               []string{"admin", "user", "org:rd"},
+				DisplayName:  "test user",
+				Organization: "R&D",
+				UserID:       "user1",
+				Email:        "user1@example.com",
+				Scopes:       []string{"admin", "user", "org:rd"},
 				FederatedUserAccounts: []FederatedAccount{
 					{
 						Service: Twitter,
@@ -64,11 +63,11 @@ func TestNewLocalUserStorage(t *testing.T) {
 				requestUserID: "user1",
 			},
 			want: &User{
-				DisplayName:          "test user",
-				Organization:         "R&D",
-				UserID:               "user1",
-				Email:                "user1@example.com",
-				Scopes:               []string{"admin", "user", "org:rd"},
+				DisplayName:  "test user",
+				Organization: "R&D",
+				UserID:       "user1",
+				Email:        "user1@example.com",
+				Scopes:       []string{"admin", "user", "org:rd"},
 				FederatedUserAccounts: []FederatedAccount{
 					{
 						Service: Twitter,
@@ -108,7 +107,7 @@ func Test_parseUsersFromBlob(t *testing.T) {
 				src: `id,name,org,scopes,email
 `,
 			},
-			want: nil,
+			want:    nil,
 			wantErr: false,
 		},
 		{
@@ -117,7 +116,7 @@ func Test_parseUsersFromBlob(t *testing.T) {
 				src: `name,org,scopes,email
 `,
 			},
-			want: nil,
+			want:    nil,
 			wantErr: true,
 		},
 		{
@@ -129,11 +128,11 @@ user1,test user,user1@example.com,R&D,"admin,user,org:rd",user1
 			},
 			want: []*User{
 				{
-					DisplayName:          "test user",
-					Organization:         "R&D",
-					UserID:               "user1",
-					Email:                "user1@example.com",
-					Scopes:               []string{"admin", "user", "org:rd"},
+					DisplayName:  "test user",
+					Organization: "R&D",
+					UserID:       "user1",
+					Email:        "user1@example.com",
+					Scopes:       []string{"admin", "user", "org:rd"},
 					FederatedUserAccounts: []FederatedAccount{
 						{
 							Service: Twitter,
@@ -183,11 +182,11 @@ func Test_readUsersFromBlob(t *testing.T) {
 			},
 			want: []*User{
 				{
-					DisplayName:          "test user1",
-					Organization:         "R&D",
-					UserID:               "testuser1",
-					Email:                "testuser1@example.com",
-					Scopes:               []string{"admin", "user", "org:rd"},
+					DisplayName:  "test user1",
+					Organization: "R&D",
+					UserID:       "testuser1",
+					Email:        "testuser1@example.com",
+					Scopes:       []string{"admin", "user", "org:rd"},
 					FederatedUserAccounts: []FederatedAccount{
 						{
 							Service: Twitter,

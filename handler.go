@@ -8,13 +8,13 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-type WruHandler struct {
+type wruHandler struct {
 	c  *Config
 	s  SessionStorage
 	ir *IdentityRegister
 }
 
-func (wh WruHandler) Login(w http.ResponseWriter, r *http.Request) {
+func (wh wruHandler) Login(w http.ResponseWriter, r *http.Request) {
 	if wh.c.DevMode {
 		pages.ExecuteTemplate(w, "debug_login.html", &debugLoginPageContext{
 			Users: wh.ir.AllUsers(),
@@ -22,34 +22,34 @@ func (wh WruHandler) Login(w http.ResponseWriter, r *http.Request) {
 	} else {
 		pages.ExecuteTemplate(w, "login.html", &loginPageContext{
 			Twitter: wh.c.Twitter.Available(),
-			GitHub: wh.c.GitHub.Available(),
-			OIDC: wh.c.OIDC.Available(),
+			GitHub:  wh.c.GitHub.Available(),
+			OIDC:    wh.c.OIDC.Available(),
 		})
 	}
 }
 
-func (wh WruHandler) DebugLogin(w http.ResponseWriter, r *http.Request) {
-	id, _ := GetSessionInfo(r)
+func (wh wruHandler) DebugLogin(w http.ResponseWriter, r *http.Request) {
+	id, _ := GetSession(r)
 	err := r.ParseForm()
 	if err != nil {
-		http.Error(w, "http request error: " + err.Error(), http.StatusInternalServerError)
+		http.Error(w, "http request error: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	userID := r.Form.Get("userid")
 	user, err := wh.ir.FindUserByID(userID)
 	if err != nil {
-		http.Error(w, "user not found: " + userID, http.StatusNotFound)
+		http.Error(w, "user not found: "+userID, http.StatusNotFound)
 	}
 	loginInfo := map[string]string{
 		"login-idp": "debug",
 	}
 	newID, oldInfo, err := wh.s.StartSession(r.Context(), id, user, r, loginInfo)
 	if err != nil {
-		http.Error(w, "login error: " + err.Error(), http.StatusBadRequest)
+		http.Error(w, "login error: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 	log.Printf("🐣 login as %s\n", userID)
-	SetSessionID(r.Context(), w, newID, wh.c, ActiveSession)
+	setSessionID(r.Context(), w, newID, wh.c, ActiveSession)
 	if u, ok := oldInfo["landingURL"]; ok {
 		http.Redirect(w, r, u, http.StatusFound)
 	} else {
@@ -57,16 +57,16 @@ func (wh WruHandler) DebugLogin(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (wh WruHandler) FederatedLogin(w http.ResponseWriter, r *http.Request) {
+func (wh wruHandler) FederatedLogin(w http.ResponseWriter, r *http.Request) {
 	idp := chi.URLParam(r, "provider")
-	oldSessionID, _ := GetSessionInfo(r)
+	oldSessionID, _ := GetSession(r)
 	if oldSessionID == "" {
 		var err error
 		oldSessionID, err = wh.s.StartLogin(r.Context(), map[string]string{
 			"landingURL": wh.c.DefaultLandingPage,
 		})
 		if err != nil {
-			http.Error(w, "session storage access error: " + err.Error(), http.StatusInternalServerError)
+			http.Error(w, "session storage access error: "+err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
@@ -93,24 +93,24 @@ func (wh WruHandler) FederatedLogin(w http.ResponseWriter, r *http.Request) {
 		}
 		redirectUrl, loginInfo, err = oidcLoginStart(wh.c)
 	default:
-		http.Error(w, "undefined provider: " + idp, http.StatusBadRequest)
+		http.Error(w, "undefined provider: "+idp, http.StatusBadRequest)
 		return
 	}
 	if err != nil {
-		http.Error(w, "can't start login sequence: " + err.Error(), http.StatusInternalServerError)
+		http.Error(w, "can't start login sequence: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	newSessionID, err := wh.s.AddLoginInfo(r.Context(), oldSessionID, loginInfo)
 	if err != nil {
-		http.Error(w, "session storage access error: " + err.Error(), http.StatusBadRequest)
+		http.Error(w, "session storage access error: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	SetSessionID(r.Context(), w, newSessionID, wh.c, BeforeLogin)
+	setSessionID(r.Context(), w, newSessionID, wh.c, BeforeLogin)
 	http.Redirect(w, r, redirectUrl, http.StatusFound)
 }
 
-func (wh WruHandler) Callback(w http.ResponseWriter, r *http.Request) {
-	id, ses, _ := LookupSession(wh.c, wh.s, r)
+func (wh wruHandler) Callback(w http.ResponseWriter, r *http.Request) {
+	id, ses, _ := lookupSessionFromRequest(wh.c, wh.s, r)
 	idpName := ses.Data["idp"]
 	var idpUser string
 	var err error
@@ -139,20 +139,20 @@ func (wh WruHandler) Callback(w http.ResponseWriter, r *http.Request) {
 		idp = OIDC
 		idpUser, newLoginInfo, err = oidcCallback(wh.c, r, ses.Data)
 	default:
-		http.Error(w, "undefined provider: " + idpName, http.StatusBadRequest)
+		http.Error(w, "undefined provider: "+idpName, http.StatusBadRequest)
 		return
 	}
 
 	user, err := wh.ir.FindUserOf(idp, idpUser)
 	if err != nil {
-		http.Error(w, "user not found: " + idpUser + " of " + idpName, http.StatusNotFound)
+		http.Error(w, "user not found: "+idpUser+" of "+idpName, http.StatusNotFound)
 		return
 	}
 
 	newID, oldInfo, err := wh.s.StartSession(r.Context(), id, user, r, newLoginInfo)
-	SetSessionID(r.Context(), w, newID, wh.c, ActiveSession)
+	setSessionID(r.Context(), w, newID, wh.c, ActiveSession)
 	log.Printf("🐣 login as %s of %s\n", idpUser, idpName)
-	SetSessionID(r.Context(), w, newID, wh.c, ActiveSession)
+	setSessionID(r.Context(), w, newID, wh.c, ActiveSession)
 	if u, ok := oldInfo["landingURL"]; ok {
 		http.Redirect(w, r, u, http.StatusFound)
 	} else {
@@ -160,16 +160,16 @@ func (wh WruHandler) Callback(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (wh WruHandler) Confirm(w http.ResponseWriter, r *http.Request) {
+func (wh wruHandler) Confirm(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "not implemented", http.StatusInternalServerError)
 }
 
-func (wh WruHandler) ConfirmAction(w http.ResponseWriter, r *http.Request) {
+func (wh wruHandler) ConfirmAction(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "not implemented", http.StatusInternalServerError)
 }
 
-func (wh WruHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	id, _ := GetSessionInfo(r)
+func (wh wruHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	id, _ := GetSession(r)
 	err := wh.s.Logout(r.Context(), id)
 	if err != nil {
 		if isHTML(r) {
@@ -181,7 +181,7 @@ func (wh WruHandler) Logout(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	RemoveSessionID(w, wh.c)
+	removeSessionID(w, wh.c)
 	if isHTML(r) {
 		http.Redirect(w, r, "/.wru/login", http.StatusFound)
 	} else {
@@ -190,12 +190,12 @@ func (wh WruHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (wh WruHandler) User(w http.ResponseWriter, r *http.Request) {
-	_, ses := GetSessionInfo(r)
+func (wh wruHandler) User(w http.ResponseWriter, r *http.Request) {
+	_, ses := GetSession(r)
 	u, err := wh.ir.FindUserByID(ses.UserID)
 
 	if err != nil {
-		http.Error(w, "user not found: " + ses.UserID, http.StatusNotFound)
+		http.Error(w, "user not found: "+ses.UserID, http.StatusNotFound)
 		return
 	}
 
@@ -207,11 +207,11 @@ func (wh WruHandler) User(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (wh WruHandler) Sessions(w http.ResponseWriter, r *http.Request) {
-	sid, ses := GetSessionInfo(r)
+func (wh wruHandler) Sessions(w http.ResponseWriter, r *http.Request) {
+	sid, ses := GetSession(r)
 	sessions, err := wh.s.GetUserSessions(r.Context(), ses.UserID)
 	if err != nil {
-		http.Error(w, "user not found: " + ses.UserID, http.StatusNotFound)
+		http.Error(w, "user not found: "+ses.UserID, http.StatusNotFound)
 		return
 	}
 	for i, s := range sessions {
@@ -229,8 +229,8 @@ func (wh WruHandler) Sessions(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (wh WruHandler) SessionLogout(w http.ResponseWriter, r *http.Request) {
-	currentID, _ := GetSessionInfo(r)
+func (wh wruHandler) SessionLogout(w http.ResponseWriter, r *http.Request) {
+	currentID, _ := GetSession(r)
 	targetID := chi.URLParam(r, "sessionID")
 	if currentID == targetID {
 		http.Error(w, "target session ID should not be as same as current ID", http.StatusBadRequest)
@@ -255,9 +255,27 @@ func (wh WruHandler) SessionLogout(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func authMiddleware(c *Config, s SessionStorage, u *IdentityRegister) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		r := newHandler(c, s, u)
+		r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+			sid, ses, ok := lookupSessionFromRequest(c, s, r)
+			if !ok || (ses.Status != ActiveSession) {
+				if r.RequestURI == "/favicon.ico" {
+					http.Error(w, "not found", http.StatusNotFound)
+					return
+				}
+				startSessionAndRedirect(c, s, w, r)
+				return
+			}
+			next.ServeHTTP(w, setSessionInfo(r, sid, ses))
+		})
+		return r
+	}
+}
 
-func AuthRouter(c *Config, s SessionStorage, u *IdentityRegister, next http.Handler) http.Handler {
-	wh := &WruHandler{
+func newHandler(c *Config, s SessionStorage, u *IdentityRegister) *chi.Mux {
+	wh := &wruHandler{
 		c:  c,
 		s:  s,
 		ir: u,
@@ -276,25 +294,13 @@ func AuthRouter(c *Config, s SessionStorage, u *IdentityRegister, next http.Hand
 		r.With(MustLogin(c, s)).Get("/user/sessions", wh.Sessions)
 		r.With(MustLogin(c, s)).Post("/user/sessions/{sessionID}/logout", wh.SessionLogout)
 	})
-	r.NotFound(func(w http.ResponseWriter, r *http.Request) {
-		sid, ses, ok := LookupSession(c, s, r)
-		if !ok || (ses.Status != ActiveSession){
-			if r.RequestURI == "/favicon.ico" {
-				http.Error(w, "not found", http.StatusNotFound)
-				return
-			}
-			StartSessionAndRedirect(c, s, w, r)
-			return
-		}
-		next.ServeHTTP(w, SetSessionInfo(r, sid, ses))
-	})
 	return r
 }
 
-func NewHandler(c *Config, s SessionStorage, u *IdentityRegister) (http.Handler, error) {
-	h, err := NewProxy(c, s)
+func NewIdentityAwareProxyHandler(c *Config, s SessionStorage, u *IdentityRegister) (http.Handler, error) {
+	h, err := NewReverseProxy(c, s)
 	if err != nil {
 		return nil, err
 	}
-	return AuthRouter(c, s, u, h), nil
+	return authMiddleware(c, s, u)(h), nil
 }

@@ -30,7 +30,7 @@ const (
 
 var (
 	ErrUserNotFound = errors.New("user not found")
-	ErrNotModified = errors.New("not modified")
+	ErrNotModified  = errors.New("not modified")
 )
 
 type FederatedAccount struct {

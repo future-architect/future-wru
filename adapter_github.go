@@ -29,7 +29,7 @@ func initGitHubConfig(c *Config, out io.Writer) {
 			Scopes:       []string{"user:email"},
 			RedirectURL:  callback,
 		}
-		c.AvailableIDPs["github"] = true
+		c.availableIDPs["github"] = true
 		if out != nil {
 			color.Fprint(out, "<blue>GitHub Login:</> <green>OK</>\n")
 		}

@@ -4,13 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/gookit/color"
 	"io"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"time"
 
-	"github.com/gookit/color"
 	"github.com/kelseyhightower/envconfig"
 	"github.com/oschwald/geoip2-golang"
 )
@@ -87,11 +88,19 @@ type Config struct {
 	GitHub  GitHubConfig
 	OIDC    OIDCConfig
 
-	AvailableIDPs map[string]bool
+	availableIDPs map[string]bool
 
 	RedisSession RedisConfig
 
-	GeoIPDB *geoip2.Reader
+	GeoIPDatabasePath string
+
+	Users []*User
+
+	// internal use
+	geoIPDB *geoip2.Reader
+
+	// internal use
+	init bool
 }
 
 func NewConfigFromEnv(ctx context.Context, out io.Writer) (*Config, error) {
@@ -108,14 +117,6 @@ func NewConfigFromEnv(ctx context.Context, out io.Writer) (*Config, error) {
 	fieldKey, fieldType, err := parseClientSessionField(e.ClientSessionIDCookie)
 	if err != nil {
 		return nil, err
-	}
-
-	var db *geoip2.Reader
-	if e.GeoIPDatabase != "" {
-		db, err = geoip2.Open(e.GeoIPDatabase)
-		if err != nil {
-			return nil, err
-		}
 	}
 
 	c := Config{
@@ -149,14 +150,80 @@ func NewConfigFromEnv(ctx context.Context, out io.Writer) (*Config, error) {
 			ClientID:     e.OIDCClientID,
 			ClientSecret: e.OIDCClientSecret,
 		},
-		DevMode:       e.DevMode,
-		AvailableIDPs: make(map[string]bool),
-		GeoIPDB: db,
+		DevMode:           e.DevMode,
+		GeoIPDatabasePath: e.GeoIPDatabase,
+	}
+	err = c.Init(ctx, out)
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
+}
+
+func (c *Config) Init(ctx context.Context, out io.Writer) error {
+	if c.init == true {
+		return nil
 	}
 
+	// set defaults
+	if c.Port == 0 {
+		c.Port = 3000
+	}
+	if c.AdminPort == 0 {
+		c.AdminPort = 3001
+	}
+	if c.DefaultLandingPage == "" {
+		c.DefaultLandingPage = "/"
+	}
+	if c.ClientSessionKey == "" {
+		c.ClientSessionKey = "WRU_SESSION"
+		c.ClientSessionFieldCookie = CookieField
+	}
+	if c.ServerSessionField == "" {
+		c.ServerSessionField = "Wru-Session"
+	}
+	if c.LoginTimeoutTerm == 0 {
+		c.LoginTimeoutTerm = 10 * time.Minute
+	}
+	if c.SessionIdleTimeoutTerm == 0 {
+		c.SessionIdleTimeoutTerm = 1 * time.Hour
+	}
+	if c.SessionAbsoluteTimeoutTerm == 0 {
+		c.SessionAbsoluteTimeoutTerm = 720 * time.Hour
+	}
+
+	// existing check
+	if c.Host == "" {
+		return errors.New("config Host is required")
+	}
+
+	c.availableIDPs = make(map[string]bool)
+
+	if !c.DevMode {
+		initTwitterClient(c, out)
+		initGitHubConfig(c, out)
+		initOpenIDConnectConfig(ctx, c, out)
+		if len(c.availableIDPs) == 0 {
+			return errors.New("No ID Provider is available")
+		}
+	}
+
+	if c.GeoIPDatabasePath != "" {
+		db, err := geoip2.Open(c.GeoIPDatabasePath)
+		if err != nil {
+			return err
+		}
+		c.geoIPDB = db
+	}
+	err := initTemplate(c, os.Stdout)
+	if err != nil {
+		return fmt.Errorf("Parse HTML template error: %s", err.Error())
+	}
+
+	c.init = true
 	if out != nil {
-		color.Fprintf(out, "<blue>Host:</> %s\n", e.Host)
-		color.Fprintf(out, "<blue>Port:</> %d\n", e.Port)
+		color.Fprintf(out, "<blue>Host:</> %s\n", c.Host)
+		color.Fprintf(out, "<blue>Port:</> %d\n", c.Port)
 		if c.TlsCert != "" && c.TlsKey != "" {
 			color.Fprintf(out, "<blue>TLS:</> <green>enabled</>\n")
 		} else {
@@ -167,22 +234,13 @@ func NewConfigFromEnv(ctx context.Context, out io.Writer) (*Config, error) {
 		for _, r := range c.ForwardTo {
 			color.Fprintf(out, "  <green>%s</> => %s (%s)\n", r.Path, r.Host.String(), strings.Join(r.Scopes, ", "))
 		}
-		if c.GeoIPDB != nil {
-			color.Fprintf(out, "<blue>GeoIP:</> <green>enabled(%s)</>\n", e.GeoIPDatabase)
+		if c.GeoIPDatabasePath != "" {
+			color.Fprintf(out, "<blue>GeoIP:</> <green>enabled(%s)</>\n", c.GeoIPDatabasePath)
 		} else {
 			color.Fprintf(out, "<blue>GeoIP:</> <red>disabled</>\n")
 		}
 	}
-
-	if !c.DevMode {
-		initTwitterClient(&c, out)
-		initGitHubConfig(&c, out)
-		initOpenIDConnectConfig(ctx, &c, out)
-		if len(c.AvailableIDPs) == 0 {
-			return nil, errors.New("No ID Provider is available")
-		}
-	}
-	return &c, nil
+	return nil
 }
 
 var rre = regexp.MustCompile(`\s*(/.*)\s*=>\s*(https?://[^\s (]+)(\s*\((.*)\))?\s*`)

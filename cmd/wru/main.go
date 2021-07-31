@@ -38,11 +38,6 @@ func main() {
 		fmt.Fprintln(os.Stderr, color.Error.Sprintf("Parse config error: %s", err.Error()))
 		os.Exit(1)
 	}
-	err = wru.InitTemplates(c, os.Stdout)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, color.Error.Sprintf("Parse HTML template error: %s", err.Error()))
-		os.Exit(1)
-	}
 	sessionStorage, err := wru.NewSessionStorage(ctx, c, os.Stdout)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, color.Error.Sprintf("Connect session error: %s", err.Error()))
@@ -56,7 +51,7 @@ func main() {
 	for _, w := range warnings {
 		fmt.Fprintln(os.Stderr, color.Warn.Sprintf("User parse warning: %s", w))
 	}
-	handler, err := wru.NewHandler(c, sessionStorage, userStorage)
+	handler, err := wru.NewIdentityAwareProxyHandler(c, sessionStorage, userStorage)
 
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", c.Port),

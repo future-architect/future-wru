@@ -256,8 +256,11 @@ func TestSessionStorage_UpdateSessionData(t *testing.T) {
 	now := time.Date(2021, time.July, 2, 11, 30, 0, 0, time.Local)
 	ctx = setFixTime(context.Background(), now)
 
-	s.UpdateSessionData(ctx, sid, []string{
-		"key=value",
+	s.UpdateSessionData(ctx, sid, []*Directive{
+		{
+			Key:   "key",
+			Value: "value",
+		},
 	})
 
 	ses, err := s.FindBySessionToken(ctx, sid)
@@ -307,4 +310,3 @@ func TestSessionStorage_RenewSession(t *testing.T) {
 	assert.NotNil(t, ses2)
 	assert.NoError(t, err)
 }
-

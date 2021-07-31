@@ -23,7 +23,7 @@ func TestNewProxy(t *testing.T) {
 		lastCalled = "server2"
 	}))
 	defer server2.Close()
-	p, err := NewProxy(&Config{
+	p, err := NewReverseProxy(&Config{
 		ForwardTo: []Route{
 			{
 				Host: mustParseUrl(server1.URL),
@@ -45,33 +45,33 @@ func TestNewProxy(t *testing.T) {
 		path string
 	}
 	tests := []struct {
-		name    string
-		args    args
-		wantStatus    int
+		name           string
+		args           args
+		wantStatus     int
 		wantLastCalled string
 	}{
 		{
 			name: "success 1",
 			args: args{
-				path:       "/server1/test",
+				path: "/server1/test",
 			},
-			wantStatus: 200,
+			wantStatus:     200,
 			wantLastCalled: "server1",
 		},
 		{
 			name: "success 2",
 			args: args{
-				path:       "/server2/test",
+				path: "/server2/test",
 			},
-			wantStatus: 200,
+			wantStatus:     200,
 			wantLastCalled: "server2",
 		},
 		{
 			name: "missing",
 			args: args{
-				path:       "/server3/test",
+				path: "/server3/test",
 			},
-			wantStatus: 404,
+			wantStatus:     404,
 			wantLastCalled: "",
 		},
 	}

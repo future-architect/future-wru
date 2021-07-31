@@ -132,7 +132,7 @@ func (s *ServerlessSessionStorage) StartSession(ctx context.Context, oldSessionI
 	err = s.singleSessions.Get(ctx, loginSession)
 	if err != nil {
 		if gcerrors.Code(err) == gcerrors.NotFound {
-			return "", nil, errors.New("StartSessionAndRedirect requires old session to login")
+			return "", nil, errors.New("startSessionAndRedirect requires old session to login")
 		}
 	}
 	s.singleSessions.Delete(ctx, &SingleSessionData{
@@ -334,17 +334,13 @@ func (s *ServerlessSessionStorage) readSession(ctx context.Context, token string
 	return &sSes, &uSes, status, nil
 }
 
-func (s ServerlessSessionStorage) UpdateSessionData(ctx context.Context, sessionID string, directives []string) (err error) {
+func (s ServerlessSessionStorage) UpdateSessionData(ctx context.Context, sessionID string, directives []*Directive) (err error) {
 	sSes, uSes, _, err := s.readSession(ctx, sessionID)
 	if err != nil {
 		return err
 	}
 	if len(directives) > 0 {
-		for _, src := range directives {
-			d, err := parseDirective(src)
-			if err != nil {
-				return err
-			}
+		for _, d := range directives {
 			if d.Value == "" {
 				delete(uSes.Data, d.Key)
 			} else {

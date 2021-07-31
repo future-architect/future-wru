@@ -24,48 +24,48 @@ type loginInfo struct {
 	ses *Session
 }
 
-func SetSessionInfo(r *http.Request, sid string, ses *Session) *http.Request {
+func setSessionInfo(r *http.Request, sid string, ses *Session) *http.Request {
 	return r.WithContext(context.WithValue(r.Context(), loginInfoKey, &loginInfo{
 		sid: sid,
 		ses: ses,
 	}))
 }
 
-func GetSessionInfo(r *http.Request) (sid string, ses *Session) {
+func GetSession(r *http.Request) (sid string, ses *Session) {
 	if li, ok := r.Context().Value(loginInfoKey).(*loginInfo); ok {
 		return li.sid, li.ses
 	}
 	return "", nil
 }
 
-func MustLogin(c *Config, s SessionStorage) func(http.Handler)http.Handler {
+func MustLogin(c *Config, s SessionStorage) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			sid, ses, ok := LookupSession(c, s, r)
-			if !ok || (ses.Status != ActiveSession && ses.Status != BeforeLogin){
-				StartSessionAndRedirect(c, s, w, r)
+			sid, ses, ok := lookupSessionFromRequest(c, s, r)
+			if !ok || (ses.Status != ActiveSession && ses.Status != BeforeLogin) {
+				startSessionAndRedirect(c, s, w, r)
 				return
 			}
-			next.ServeHTTP(w, SetSessionInfo(r, sid, ses))
+			next.ServeHTTP(w, setSessionInfo(r, sid, ses))
 		})
 	}
 }
 
-func MustNotLogin(c *Config, s SessionStorage) func(http.Handler)http.Handler {
+func MustNotLogin(c *Config, s SessionStorage) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			sid, ses, ok := LookupSession(c, s, r)
+			sid, ses, ok := lookupSessionFromRequest(c, s, r)
 			if ok && ses.Status == ActiveSession {
 				http.Redirect(w, r, c.DefaultLandingPage, http.StatusFound)
 				return
 			}
-			next.ServeHTTP(w, SetSessionInfo(r, sid, ses))
+			next.ServeHTTP(w, setSessionInfo(r, sid, ses))
 		})
 	}
 
 }
 
-func SetSessionID(ctx context.Context, w http.ResponseWriter, sessionID string, c *Config, status SessionStatus) {
+func setSessionID(ctx context.Context, w http.ResponseWriter, sessionID string, c *Config, status SessionStatus) {
 	now := currentTime(ctx)
 	var expires time.Time
 	if status == BeforeLogin {
@@ -85,13 +85,13 @@ func SetSessionID(ctx context.Context, w http.ResponseWriter, sessionID string, 
 	})
 }
 
-func RemoveSessionID(w http.ResponseWriter, c *Config) {
+func removeSessionID(w http.ResponseWriter, c *Config) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     c.ClientSessionKey,
 		Value:    "",
 		Path:     "/",
 		Domain:   "",
-		Expires:  time.Date(1980,time.January, 1, 0, 0, 0, 0, time.UTC),
+		Expires:  time.Date(1980, time.January, 1, 0, 0, 0, 0, time.UTC),
 		Secure:   strings.HasPrefix(c.Host, "https://"),
 		HttpOnly: c.ClientSessionFieldCookie == CookieField,
 		SameSite: http.SameSiteLaxMode,
