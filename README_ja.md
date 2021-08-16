@@ -2,32 +2,35 @@
 
 ![wru logo](doc/logo-small.png)
 
-WRUはエンタープライズ向けのIdentity-awareリバースプロキシ/ミドルウェアです。
-WRUは開発環境と本番環境でシームレス使える認可機構を提供します。
+WRU はエンタープライズ向けの Identity-aware リバースプロキシ/ミドルウェアです。
+WRU は開発環境と本番環境でシームレス使える認可機構を提供します。
 
-## WRUは何向けか？
+## WRU は何向けか？
 
-* 2Bなユーザー向け
-  * ユーザー情報はストレージ上のCSVファイル（ローカル、AWS nS3、GCP Cloud Storage）から読み込み可能
+- 2B なユーザー向け
 
-* 2Cユーザー向けではない
-  * 動的なユーザー登録機構は未実装
+  - ユーザー情報はストレージ上の CSV ファイル（ローカル、AWS nS3、GCP Cloud Storage）から読み込み可能
 
-* テスト環境向け
-  * ユーザー情報はファイル以外にも環境変数で追加可能なのでDockerでも簡単に初期化可能
-  * テスト環境ではパスワード不要でのログインが可能（E2Eテストがかんたん）
+- 2C ユーザー向けではない
 
-* 本番環境向け
-  * OpenID Connectや、いくつかのSNS（現在はTwitterとGitHub）での認証をサポート
+  - 動的なユーザー登録機構は未実装
+
+- テスト環境向け
+
+  - ユーザー情報はファイル以外にも環境変数で追加可能なので Docker でも簡単に初期化可能
+  - テスト環境ではパスワード不要でのログインが可能（E2E テストがかんたん）
+
+- 本番環境向け
+  - OpenID Connect や、いくつかの SNS（現在は Twitter と GitHub）での認証をサポート
 
 ## リバースプロキシとして利用
 
 ### 導入方法
 
-"go get"でwruのインストールが可能です:
+"go get"で wru のインストールが可能です:
 
 ```bash
-$ go get -u gitlab.com/osaki-lab/wru/cmd/wru
+$ go get -u	github.com/future-architect/future-wru/cmd/wru
 $ wru
 Port: 8000
 TLS: enabled
@@ -39,14 +42,14 @@ GitHub Login: OK
 Users (for Debug):
   (User) 'test user 1'(user1) @ R&D (scopes: admin, user, org:rd)
   (User) 'test user 2'(user2) @ HR (scopes: user, org:hr)
-starting wru server at https://localhost:8000  
+starting wru server at https://localhost:8000
 ```
 
 `wru` コマンドはコマンドラインオプションをサポートしていません。動作のカスタマイズは環境変数を使って行います。
 
-### WRUの実行モード
+### WRU の実行モード
 
-WRUは2つの実行モードを持ちます。バックエンドのサービス側はモードの違いを意識する必要はなく、常に必要な認証が行われる前提でアプリケーションを実装できます。
+WRU は 2 つの実行モードを持ちます。バックエンドのサービス側はモードの違いを意識する必要はなく、常に必要な認証が行われる前提でアプリケーションを実装できます。
 
 #### ローカル開発向けモード
 
@@ -54,11 +57,11 @@ WRUは2つの実行モードを持ちます。バックエンドのサービス�
 
 サンプルの設定:
 
-* https://localhost:8000で起動
-* wruがTLSをサポート
-* バックエンドサーバーはhttp://localhost:8080で稼働
-* テストユーザーは人
-* Session storage is in-memory mode (turn off wru resets data)
+- https://localhost:8000 で起動
+- wru が TLS をサポート
+- バックエンドサーバーは http://localhost:8080 で稼働
+- テストユーザーは人
+- Session storage is in-memory mode (turn off wru resets data)
 
 ```bash
 $ export WRU_DEV_MODE=true
@@ -76,12 +79,12 @@ $ PORT=8000 HOST=https://localhost:8000 wru
 
 サンプルの設定:
 
-* example.comで起動（ローカルのポートは8000)
-* wruではTLS提供はなし (AWS ALBなどが提供)
-* バックエンドサーバーはhttp://server.example.comで稼働
-* ユーザー情報はS3から読み込み（1時間ごとにリロード）
-* セッションストレージはDynamoDB
-* Twitter/GitHub/OpenID Connectログインを利用
+- example.com で起動（ローカルのポートは 8000)
+- wru では TLS 提供はなし (AWS ALB などが提供)
+- バックエンドサーバーはhttp://server.example.comで稼働
+- ユーザー情報は S3 から読み込み（1 時間ごとにリロード）
+- セッションストレージは DynamoDB
+- Twitter/GitHub/OpenID Connect ログインを利用
 
 ```bash
 $ export WRU_DEV_MODE=false
@@ -100,10 +103,10 @@ $ PORT=8000 HOST=https://example.com wru
 
 ### フロントエンド向けのエンドポイント
 
-* `/.wru/login`: ログインページ
-* `/.wru/logout`: ログアウトページ（GETアクセスでログアウト実行）
-* `/.wru/user`: ユーザーページ（HTML/JSON形式をサポート）
-* `/.wru/user/sessions`: ユーザーのログインセッション情報ページ（HTML/JSON形式をサポート）
+- `/.wru/login`: ログインページ
+- `/.wru/logout`: ログアウトページ（GET アクセスでログアウト実行）
+- `/.wru/user`: ユーザーページ（HTML/JSON 形式をサポート）
+- `/.wru/user/sessions`: ユーザーのログインセッション情報ページ（HTML/JSON 形式をサポート）
 
 ### セッションストレージ
 
@@ -117,7 +120,7 @@ $ PORT=8000 HOST=https://example.com wru
 Wru-Set-Session-Data: access-count=10
 ```
 
-wruがこのヘッダーフィールドをフィルターして（ブラウザ側に送られることはありません）、その内容をセッションストレージに格納します。
+wru がこのヘッダーフィールドをフィルターして（ブラウザ側に送られることはありません）、その内容をセッションストレージに格納します。
 
 格納した内容は、次回のリクエスト時に`Wru-Session`ヘッダーフィールド（`WRU_SERVER_SESSION_FIELD`環境変数で変更可能）に入れられてバックエンドサーバーに送られます。
 
@@ -125,7 +128,7 @@ wruがこのヘッダーフィールドをフィルターして（ブラウザ�
 Wru-Session: {"login_at":1212121,"id":"shibu","name":"Yoshiki Shibukawa","scopes":["user","admin"],data:{"access-count":"10"}}
 ```
 
-このすべての内容をGoで読むには、次の構造体を使ってパースします:
+このすべての内容を Go で読むには、次の構造体を使ってパースします:
 
 ```go
 type Session struct {
@@ -154,25 +157,23 @@ func ParseSession(r *http.Request) (*Session, error) {
 }
 ```
 
-
-
 ### 設定
 
-#### wruのプロセスの関連の設定
+#### wru のプロセスの関連の設定
 
-* `PORT`: wruが利用するポート番号（デフォルトは3000)
-* `HOST`: wruが外部から利用可能なホスト名（必須）。OAuth/OpenID Connectのコールバック先としても利用される。
-* `WRU_DEV_MODE`: 実行モードの変更（次節で説明）
-* `WRU_TLS_CERT` と `WRU_TLS_KEY`: TLSのサーバーを起動
+- `PORT`: wru が利用するポート番号（デフォルトは 3000)
+- `HOST`: wru が外部から利用可能なホスト名（必須）。OAuth/OpenID Connect のコールバック先としても利用される。
+- `WRU_DEV_MODE`: 実行モードの変更（次節で説明）
+- `WRU_TLS_CERT` と `WRU_TLS_KEY`: TLS のサーバーを起動
 
 ### ストレージ設定
 
-WRUはユーザー情報はオンメモリで持ちます。ユーザー情報は、CSVファイルや環境変数から読み込みます。
+WRU はユーザー情報はオンメモリで持ちます。ユーザー情報は、CSV ファイルや環境変数から読み込みます。
 
-* `WRU_SESSION_STORAGE`: セッションストレージ。デフォルトはメモリ。DynamoDB、Firestore、MongoDBもサポート
-* `WRU_USER_TABLE`: CSVファイルを読み込むローカルファイル/Blob(AWS S3、GCP Cloud Storage)のパス。
-* `WRU_USER_TABLE_RELOAD_TERM`: ファイルリロード間隔
-* `WRU_USER_%d`: 環境変数経由でユーザー追加（テスト用）
+- `WRU_SESSION_STORAGE`: セッションストレージ。デフォルトはメモリ。DynamoDB、Firestore、MongoDB もサポート
+- `WRU_USER_TABLE`: CSV ファイルを読み込むローカルファイル/Blob(AWS S3、GCP Cloud Storage)のパス。
+- `WRU_USER_TABLE_RELOAD_TERM`: ファイルリロード間隔
+- `WRU_USER_%d`: 環境変数経由でユーザー追加（テスト用）
 
 ユーザーを環境変数で追加する場合、カンマ区切りのタグ付きの値リストで情報を設定します:
 
@@ -180,7 +181,7 @@ WRUはユーザー情報はオンメモリで持ちます。ユーザー情報�
 WRU_USER_1="id:user1,name:test user 1,mail:user1@example.com,org:R&D,scope:admin,scope:user,scope:org:rd,twitter:user1"
 ```
 
-ユーザー情報CSVファイルは特定のキーのヘッダー行を付与します（順序は変更可能）。
+ユーザー情報 CSV ファイルは特定のキーのヘッダー行を付与します（順序は変更可能）。
 
 ```csv
 id,name,mail,org,scopes,twitter,github,oidc
@@ -189,49 +190,49 @@ user1,test user,user1@example.com,R&D,"admin,user,org:rd",user1,user1,user1@exam
 
 ### バックエンドサーバー関連の設定
 
-* `WRU_FORWARD_TO`: バックエンドサーバーを指定（必須）
-* `WRU_SERVER_SESSION_FIELD`: バックエンドサーバー向けのリクエストに付与する、セッション情報のヘッダーフィールド名（デフォルトは "Wru-Session"）
+- `WRU_FORWARD_TO`: バックエンドサーバーを指定（必須）
+- `WRU_SERVER_SESSION_FIELD`: バックエンドサーバー向けのリクエストに付与する、セッション情報のヘッダーフィールド名（デフォルトは "Wru-Session"）
 
 #### フロントエンドのユーザー体験に関する設定
 
-* `WRU_DEFAULT_LANDING_PAGE`: WRUはなるべく初回アクセスのあったページにログイン後に復帰させようとします。この変数はその情報が得られなかった時のデフォルトのパスです（デフォルトは'/'）
-* `WRU_LOGIN_TIMEOUT_TERM`: ログイン前のセッショントークンが期限切れになる期間（デフォルトは'10m'）
-* `WRU_SESSION_IDLE_TIMEOUT_TERM`: アクティブなセッショントークンがタイムアウトする期間（デフォルトは'1h'）
-* `WRU_SESSION_ABSOLUTE_TIMEOUT_TERM`: セッションが最終的にタイムアウトになる期間（デフォルトは'720h'）
-* `WRU_HTML_TEMPLATE_FOLDER`: ログインやユーザーページのテンプレート（デフォルトは内蔵テンプレートを利用）
+- `WRU_DEFAULT_LANDING_PAGE`: WRU はなるべく初回アクセスのあったページにログイン後に復帰させようとします。この変数はその情報が得られなかった時のデフォルトのパスです（デフォルトは'/'）
+- `WRU_LOGIN_TIMEOUT_TERM`: ログイン前のセッショントークンが期限切れになる期間（デフォルトは'10m'）
+- `WRU_SESSION_IDLE_TIMEOUT_TERM`: アクティブなセッショントークンがタイムアウトする期間（デフォルトは'1h'）
+- `WRU_SESSION_ABSOLUTE_TIMEOUT_TERM`: セッションが最終的にタイムアウトになる期間（デフォルトは'720h'）
+- `WRU_HTML_TEMPLATE_FOLDER`: ログインやユーザーページのテンプレート（デフォルトは内蔵テンプレートを利用）
 
-#### IDプロバイダの設定
+#### ID プロバイダの設定
 
-IDプロバイダを追加するには次の環境変数の設定が必要です。
-コールバックアドレスはどのプロバイダーでも``${HOST}/.wru/callback``となります。
-IDプロバイダ側にwruをRPとして登録する場合は、このURLを設定してください。
+ID プロバイダを追加するには次の環境変数の設定が必要です。
+コールバックアドレスはどのプロバイダーでも`${HOST}/.wru/callback`となります。
+ID プロバイダ側に wru を RP として登録する場合は、この URL を設定してください。
 
 ##### Twitter
 
-* `WRU_TWITTER_CONSUMER_KEY`
-* `WRU_TWITTER_CONSUMER_SECRET`
+- `WRU_TWITTER_CONSUMER_KEY`
+- `WRU_TWITTER_CONSUMER_SECRET`
 
 ##### GitHub
 
-* `WRU_GITHUB_CLIENT_ID`
-* `WRU_GITHUB_CLIENT_SECRET`
+- `WRU_GITHUB_CLIENT_ID`
+- `WRU_GITHUB_CLIENT_SECRET`
 
 ##### OpenID Connect
 
-* `WRU_OIDC_PROVIDER_URL`
-* `WRU_OIDC_CLIENT_ID`
-* `WRU_OIDC_CLIENT_SECRET`
+- `WRU_OIDC_PROVIDER_URL`
+- `WRU_OIDC_CLIENT_ID`
+- `WRU_OIDC_CLIENT_SECRET`
 
 #### 追加オプション
 
-* `WRU_GEIIP_DATABASE`: GeoIP2/GeoLite2のファイル(.mmdb)。ユーザーの所在地をIPアドレスから推測するのに利用。
+- `WRU_GEIIP_DATABASE`: GeoIP2/GeoLite2 のファイル(.mmdb)。ユーザーの所在地を IP アドレスから推測するのに利用。
 
 ## ミドルウェアとしての利用
 
-wruはHTTPサービスのミドルウェアとしても動作します。サンプルは`cmd/sampleapp`を参照してください。
+wru は HTTP サービスのミドルウェアとしても動作します。サンプルは`cmd/sampleapp`を参照してください。
 
-`NewAuthorizationMiddleware()`関数が、動作に必要なHTTPハンドラ（ログインフォーム、OAuthのコールバックなどを含む）とミドルウェアを返します。
-ミドルウェアを、wru自身のハンドラには適用しないようにしてください（無限ループとなります）。
+`NewAuthorizationMiddleware()`関数が、動作に必要な HTTP ハンドラ（ログインフォーム、OAuth のコールバックなどを含む）とミドルウェアを返します。
+ミドルウェアを、wru 自身のハンドラには適用しないようにしてください（無限ループとなります）。
 
 `*wru.Config`は次のサンプルの作成方法（構造体を直接利用）のほか、`wru.NewConfigFromEnv()`でも作成できます。
 

@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
+	wru "github.com/future-architect/future-wru"
 	"github.com/gookit/color"
-	"gitlab.com/osaki-lab/wru"
 
 	_ "gocloud.dev/docstore/awsdynamodb"
 	_ "gocloud.dev/docstore/gcpfirestore"

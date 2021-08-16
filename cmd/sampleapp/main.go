@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
+	wru "github.com/future-architect/future-wru"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"gitlab.com/osaki-lab/wru"
 
 	// Select backend of session storage (docstore) and identity register (blob)
 	_ "gocloud.dev/docstore/memdocstore"

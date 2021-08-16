@@ -1,10 +1,9 @@
-module gitlab.com/osaki-lab/wru
+module github.com/future-architect/future-wru
 
 go 1.16
 
 require (
-	github.com/Songmu/gocredits v0.2.0 // indirect
-	github.com/coreos/go-oidc v2.2.1+incompatible // indirect
+	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/future-architect/gocloudurls v1.0.4
 	github.com/garyburd/go-oauth v0.0.0-20180319155456-bca2e7f09a17
 	github.com/go-chi/chi/v5 v5.0.3
@@ -14,7 +13,7 @@ require (
 	github.com/gookit/color v1.4.2
 	github.com/kelseyhightower/envconfig v1.4.0
 	github.com/mssola/user_agent v0.5.3
-	github.com/oschwald/geoip2-golang v1.5.0 // indirect
+	github.com/oschwald/geoip2-golang v1.5.0
 	github.com/pquerna/cachecontrol v0.1.0 // indirect
 	github.com/rs/xid v1.3.0
 	github.com/shibukawa/uuid62 v0.0.0-20190628130809-2b77c8679a0f

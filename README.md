@@ -7,18 +7,21 @@ It provides seamless authentication experience between development environemnt a
 
 ## What is WRU for
 
-* For enterprise users
-    * Easy to inject users via CSV files on storage (local, AWS S3, GCP Cloud Storage)
+- For enterprise users
 
-* Not For consumer service users
-    * It is not supporting creating user
+  - Easy to inject users via CSV files on storage (local, AWS S3, GCP Cloud Storage)
 
-* For testing
-    * Inject user information from env vars/files. You can setup via Docker easily
-    * No password required (E2E test friendly)
+- Not For consumer service users
 
-* For production
-    * It supports OpenID Connect, some SNS (Twitter and GitHub for now) to login.
+  - It is not supporting creating user
+
+- For testing
+
+  - Inject user information from env vars/files. You can setup via Docker easily
+  - No password required (E2E test friendly)
+
+- For production
+  - It supports OpenID Connect, some SNS (Twitter and GitHub for now) to login.
 
 ## Use as Reverse Proxy
 
@@ -27,7 +30,7 @@ It provides seamless authentication experience between development environemnt a
 You can get wru by "go get".
 
 ```bash
-$ go get -u gitlab.com/osaki-lab/wru/cmd/wru
+$ go get -u	github.com/future-architect/future-wru/cmd/wru
 $ wru
 Port: 8000
 TLS: enabled
@@ -39,7 +42,7 @@ GitHub Login: OK
 Users (for Debug):
   (User) 'test user 1'(user1) @ R&D (scopes: admin, user, org:rd)
   (User) 'test user 2'(user2) @ HR (scopes: user, org:hr)
-starting wru server at https://localhost:8000  
+starting wru server at https://localhost:8000
 ```
 
 `wru` command doesn't have command line options. You can control it via environment variables.
@@ -55,11 +58,11 @@ your web service always get only authorized requests.
 
 Sample configuration:
 
-* Launch at https://localhost:8000
-* Enable HTTPS by wru
-* A backend server is at http://localhost:8080
-* Two test users
-* Session storage is in-memory mode (turn off wru resets data)
+- Launch at https://localhost:8000
+- Enable HTTPS by wru
+- A backend server is at http://localhost:8080
+- Two test users
+- Session storage is in-memory mode (turn off wru resets data)
 
 ```bash
 $ export WRU_DEV_MODE=true
@@ -77,12 +80,12 @@ $ PORT=8000 HOST=https://localhost:8000 wru
 
 Sample configuration:
 
-* Launch at example.com (local port is 8000)
-* No HTTPS by wru (AWS ALB does)
-* A backend server is at http://server.example.com
-* User information is in S3 (and reread it every hour)
-* Session storage is in DynamoDB
-* Twitter/GitHub/OpenID Connect login is available
+- Launch at example.com (local port is 8000)
+- No HTTPS by wru (AWS ALB does)
+- A backend server is at http://server.example.com
+- User information is in S3 (and reread it every hour)
+- Session storage is in DynamoDB
+- Twitter/GitHub/OpenID Connect login is available
 
 ```bash
 $ export WRU_DEV_MODE=false
@@ -101,10 +104,10 @@ $ PORT=8000 HOST=https://example.com wru
 
 ### End Points for frontend
 
-* `/.wru/login`: Login page
-* `/.wru/logout`: Logout page (it works just GET access)
-* `/.wru/user`: User page (it supports HTML and JSON)
-* `/.wru/user/sessions`: User session page (it supports HTML and JSON)
+- `/.wru/login`: Login page
+- `/.wru/logout`: Logout page (it works just GET access)
+- `/.wru/user`: User page (it supports HTML and JSON)
+- `/.wru/user/sessions`: User session page (it supports HTML and JSON)
 
 ### Session Storage
 
@@ -154,25 +157,23 @@ func ParseSession(r *http.Request) (*Session, error) {
 }
 ```
 
-
-
 ### Configuration
 
 #### Server Configuration
 
-* `PORT`: Port number that wru uses (default is 3000)
-* `HOST`: Host name that wru is avaialble (required). It is used for callback of OAuth/OpenID Connect.
-* `WRU_DEV_MODE`: Change mode (described bellow)
-* `WRU_TLS_CERT` and `WRU_TLS_KEY`: Launch TLS server
+- `PORT`: Port number that wru uses (default is 3000)
+- `HOST`: Host name that wru is avaialble (required). It is used for callback of OAuth/OpenID Connect.
+- `WRU_DEV_MODE`: Change mode (described bellow)
+- `WRU_TLS_CERT` and `WRU_TLS_KEY`: Launch TLS server
 
 ### Storage Configuration
 
 WRU stores user information on-memory. You can add user via CSV or env vars.
 
-* `WRU_SESSION_STORAGE`: Session storage. Default is in memory. It supports DynamoDB, Firestore, MongoDB.
-* `WRU_USER_TABLE`: This is local file path/Blob path(AWS S3, GCP Cloud Storage) to read CSV.
-* `WRU_USER_TABLE_RELOAD_TERM`: Reload term.
-* `WRU_USER_%d`: Add user via environment variable (for testing).
+- `WRU_SESSION_STORAGE`: Session storage. Default is in memory. It supports DynamoDB, Firestore, MongoDB.
+- `WRU_USER_TABLE`: This is local file path/Blob path(AWS S3, GCP Cloud Storage) to read CSV.
+- `WRU_USER_TABLE_RELOAD_TERM`: Reload term.
+- `WRU_USER_%d`: Add user via environment variable (for testing).
 
 If you add user via env var, you use comma separated tag list:
 
@@ -189,41 +190,41 @@ user1,test user,user1@example.com,R&D,"admin,user,org:rd",user1,user1,user1@exam
 
 ### Backend Server Configuration
 
-* `WRU_FORWARD_TO`: Specify you backend server (required)
-* `WRU_SERVER_SESSION_FIELD`: Header field name that WRU adds to backend request (default is "Wru-Session")
+- `WRU_FORWARD_TO`: Specify you backend server (required)
+- `WRU_SERVER_SESSION_FIELD`: Header field name that WRU adds to backend request (default is "Wru-Session")
 
 #### Frontend User Experience Configuration
 
-* `WRU_DEFAULT_LANDING_PAGE`: WRU tries to redirect to referrer page after login. It is used when the path is not available (default is '/').
-* `WRU_LOGIN_TIMEOUT_TERM`: Login session token's expiration term (default is '10m')
-* `WRU_SESSION_IDLE_TIMEOUT_TERM`: Active session token's timeout term (default is '1h')
-* `WRU_SESSION_ABSOLUTE_TIMEOUT_TERM`: Absolute session token's timeout term (default is '720h')
-* `WRU_HTML_TEMPLATE_FOLDER`: Login/User pages' template (default tempalte is embedded ones)
+- `WRU_DEFAULT_LANDING_PAGE`: WRU tries to redirect to referrer page after login. It is used when the path is not available (default is '/').
+- `WRU_LOGIN_TIMEOUT_TERM`: Login session token's expiration term (default is '10m')
+- `WRU_SESSION_IDLE_TIMEOUT_TERM`: Active session token's timeout term (default is '1h')
+- `WRU_SESSION_ABSOLUTE_TIMEOUT_TERM`: Absolute session token's timeout term (default is '720h')
+- `WRU_HTML_TEMPLATE_FOLDER`: Login/User pages' template (default tempalte is embedded ones)
 
 #### ID Provider Configuration
 
 To enable ID provider connection, set the following env vars.
-The callback address will be ``${HOST}/.wru/callback``. You should register the URL in the setting screen of the ID provider.
+The callback address will be `${HOST}/.wru/callback`. You should register the URL in the setting screen of the ID provider.
 
 ##### Twitter
 
-* `WRU_TWITTER_CONSUMER_KEY`
-* `WRU_TWITTER_CONSUMER_SECRET`
+- `WRU_TWITTER_CONSUMER_KEY`
+- `WRU_TWITTER_CONSUMER_SECRET`
 
 ##### GitHub
 
-* `WRU_GITHUB_CLIENT_ID`
-* `WRU_GITHUB_CLIENT_SECRET`
+- `WRU_GITHUB_CLIENT_ID`
+- `WRU_GITHUB_CLIENT_SECRET`
 
 ##### OpenID Connect
 
-* `WRU_OIDC_PROVIDER_URL`
-* `WRU_OIDC_CLIENT_ID`
-* `WRU_OIDC_CLIENT_SECRET`
+- `WRU_OIDC_PROVIDER_URL`
+- `WRU_OIDC_CLIENT_ID`
+- `WRU_OIDC_CLIENT_SECRET`
 
 #### Extra Option
 
-* `WRU_GEIIP_DATABASE`: GeoIP2 or GeoLite2 file (.mmdb) to detect user location from IP address
+- `WRU_GEIIP_DATABASE`: GeoIP2 or GeoLite2 file (.mmdb) to detect user location from IP address
 
 ## Use as Middleware
 
